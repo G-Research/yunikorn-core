@@ -41,7 +41,7 @@ func (ae *AskEvents) SendRequestExceedsQueueHeadroom(allocKey, appID string, hea
 		return
 	}
 	message := fmt.Sprintf("Request '%s' does not fit in queue '%s' (requested %s, available %s)", allocKey, queuePath, allocatedResource, headroom)
-	event := events.CreateRequestEventRecord(allocKey, appID, message, allocatedResource)
+	event := events.CreateRequestEventRecord(allocKey, appID, message, allocatedResource, "")
 	ae.eventSystem.AddEvent(event)
 }
 
@@ -50,7 +50,7 @@ func (ae *AskEvents) SendRequestFitsInQueue(allocKey, appID, queuePath string, a
 		return
 	}
 	message := fmt.Sprintf("Request '%s' has become schedulable in queue '%s'", allocKey, queuePath)
-	event := events.CreateRequestEventRecord(allocKey, appID, message, allocatedResource)
+	event := events.CreateRequestEventRecord(allocKey, appID, message, allocatedResource, "")
 	ae.eventSystem.AddEvent(event)
 }
 
@@ -59,7 +59,7 @@ func (ae *AskEvents) SendRequestExceedsUserQuota(allocKey, appID string, headroo
 		return
 	}
 	message := fmt.Sprintf("Request '%s' exceeds the available user quota (requested %s, available %s)", allocKey, allocatedResource, headroom)
-	event := events.CreateRequestEventRecord(allocKey, appID, message, allocatedResource)
+	event := events.CreateRequestEventRecord(allocKey, appID, message, allocatedResource, "")
 	ae.eventSystem.AddEvent(event)
 }
 
@@ -68,7 +68,7 @@ func (ae *AskEvents) SendRequestFitsInUserQuota(allocKey, appID string, allocate
 		return
 	}
 	message := fmt.Sprintf("Request '%s' fits in the available user quota", allocKey)
-	event := events.CreateRequestEventRecord(allocKey, appID, message, allocatedResource)
+	event := events.CreateRequestEventRecord(allocKey, appID, message, allocatedResource, "")
 	ae.eventSystem.AddEvent(event)
 }
 
@@ -90,7 +90,7 @@ func (ae *AskEvents) SendPredicatesFailed(allocKey, appID string, predicateError
 	}
 
 	message := fmt.Sprintf("Unschedulable request '%s': %s", allocKey, failures)
-	event := events.CreateRequestEventRecord(allocKey, appID, message, allocatedResource)
+	event := events.CreateRequestEventRecord(allocKey, appID, message, allocatedResource, "")
 	ae.eventSystem.AddEvent(event)
 }
 
