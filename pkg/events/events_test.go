@@ -33,7 +33,7 @@ func TestCreateEventRecord(t *testing.T) {
 			map[string]resources.Quantity{
 				"cpu": 1,
 			},
-		))
+		), "")
 	assert.Equal(t, record.Type, si.EventRecord_NODE)
 	assert.Equal(t, record.ObjectID, "ask")
 	assert.Equal(t, record.ReferenceID, "app")
@@ -47,16 +47,16 @@ func TestCreateEventRecord(t *testing.T) {
 }
 
 func TestCreateEventRecordTypes(t *testing.T) {
-	record := CreateRequestEventRecord("ask", "app", "message", nil)
+	record := CreateRequestEventRecord("ask", "app", "message", nil, "")
 	assert.Equal(t, record.Type, si.EventRecord_REQUEST)
 
-	record = CreateAppEventRecord("app", "message", "ask", si.EventRecord_NONE, si.EventRecord_DETAILS_NONE, nil)
+	record = CreateAppEventRecord("app", "message", "ask", si.EventRecord_NONE, si.EventRecord_DETAILS_NONE, nil, "")
 	assert.Equal(t, record.Type, si.EventRecord_APP)
 
-	record = CreateNodeEventRecord("node", "message", "ask", si.EventRecord_NONE, si.EventRecord_DETAILS_NONE, nil)
+	record = CreateNodeEventRecord("node", "message", "ask", si.EventRecord_NONE, si.EventRecord_DETAILS_NONE, nil, "")
 	assert.Equal(t, record.Type, si.EventRecord_NODE)
 
-	record = CreateQueueEventRecord("queue", "message", "app", si.EventRecord_NONE, si.EventRecord_DETAILS_NONE, nil)
+	record = CreateQueueEventRecord("queue", "message", "app", si.EventRecord_NONE, si.EventRecord_DETAILS_NONE, nil, "")
 	assert.Equal(t, record.Type, si.EventRecord_QUEUE)
 
 	record = CreateUserGroupEventRecord("user", "message", "queue", si.EventRecord_NONE, si.EventRecord_DETAILS_NONE, nil)

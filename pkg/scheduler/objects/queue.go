@@ -739,9 +739,6 @@ func (sq *Queue) getPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	}
 	// we have held the read lock so following method should not take lock again.
 	queueInfo.HeadRoom = sq.getHeadRoom().DAOMap()
-	sq.RLock()
-	defer sq.RUnlock()
-
 	for _, child := range children {
 		queueInfo.ChildNames = append(queueInfo.ChildNames, child.QueuePath)
 	}
