@@ -95,11 +95,11 @@ func (ae *ApplicationEvents) SendNewApplicationEvent(appID, state string) {
 	ae.eventSystem.AddEvent(event)
 }
 
-func (ae *ApplicationEvents) SendRemoveApplicationEvent(appID string) {
+func (ae *ApplicationEvents) SendRemoveApplicationEvent(appID string, state string) {
 	if !ae.eventSystem.IsEventTrackingEnabled() {
 		return
 	}
-	event := events.CreateAppEventRecord(appID, common.Empty, common.Empty, si.EventRecord_REMOVE, si.EventRecord_DETAILS_NONE, nil, "")
+	event := events.CreateAppEventRecord(appID, common.Empty, common.Empty, si.EventRecord_REMOVE, si.EventRecord_DETAILS_NONE, nil, state)
 	ae.eventSystem.AddEvent(event)
 }
 
