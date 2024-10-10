@@ -28,9 +28,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/common"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 type Resource struct {

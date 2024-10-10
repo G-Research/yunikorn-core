@@ -25,7 +25,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/apache/yunikorn-core/pkg/webservice/dao"
+	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
 )
 
 type RClient struct {

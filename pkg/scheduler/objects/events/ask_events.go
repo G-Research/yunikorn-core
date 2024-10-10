@@ -26,8 +26,8 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/events"
 )
 
 // AskEvents Request-specific events. These events are of REQUEST type, so they are eventually sent to the respective pods in K8s.

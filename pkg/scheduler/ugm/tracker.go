@@ -19,8 +19,8 @@
 package ugm
 
 import (
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/common/security"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/common/security"
 )
 
 // Tracker Defines a set of interfaces to track and retrieve the user group resource usage

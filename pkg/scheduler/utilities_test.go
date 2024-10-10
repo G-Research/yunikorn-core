@@ -24,15 +24,15 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/common/security"
-	"github.com/apache/yunikorn-core/pkg/rmproxy"
-	"github.com/apache/yunikorn-core/pkg/scheduler/objects"
-	"github.com/apache/yunikorn-core/pkg/scheduler/ugm"
-	"github.com/apache/yunikorn-core/pkg/webservice/dao"
-	siCommon "github.com/apache/yunikorn-scheduler-interface/lib/go/common"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/common/security"
+	"github.com/G-Research/yunikorn-core/pkg/rmproxy"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/objects"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/ugm"
+	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
+	siCommon "github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const (

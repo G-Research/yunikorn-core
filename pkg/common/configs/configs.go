@@ -21,8 +21,8 @@ package configs
 import (
 	"time"
 
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/log"
 )
 
 const (

@@ -26,12 +26,12 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/metrics"
-	"github.com/apache/yunikorn-core/pkg/rmproxy/rmevent"
-	siCommon "github.com/apache/yunikorn-scheduler-interface/lib/go/common"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/metrics"
+	"github.com/G-Research/yunikorn-core/pkg/rmproxy/rmevent"
+	siCommon "github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const pName = "default"

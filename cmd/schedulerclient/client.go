@@ -25,7 +25,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

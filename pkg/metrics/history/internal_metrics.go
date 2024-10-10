@@ -21,7 +21,7 @@ package history
 import (
 	"time"
 
-	"github.com/apache/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
 )
 
 // This class collects basic information about the cluster

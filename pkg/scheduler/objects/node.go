@@ -26,15 +26,15 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/plugins"
-	schedEvt "github.com/apache/yunikorn-core/pkg/scheduler/objects/events"
-	"github.com/apache/yunikorn-core/pkg/webservice/dao"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/common"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/plugins"
+	schedEvt "github.com/G-Research/yunikorn-core/pkg/scheduler/objects/events"
+	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const (

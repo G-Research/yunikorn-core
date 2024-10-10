@@ -23,8 +23,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/metrics/history"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/metrics/history"
 )
 
 // collecting metrics for YuniKorn-internal usage

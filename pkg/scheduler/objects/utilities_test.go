@@ -26,16 +26,16 @@ import (
 	"github.com/google/btree"
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/common/security"
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-core/pkg/rmproxy"
-	schedEvt "github.com/apache/yunikorn-core/pkg/scheduler/objects/events"
-	"github.com/apache/yunikorn-core/pkg/scheduler/ugm"
-	siCommon "github.com/apache/yunikorn-scheduler-interface/lib/go/common"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/common/security"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-core/pkg/rmproxy"
+	schedEvt "github.com/G-Research/yunikorn-core/pkg/scheduler/objects/events"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/ugm"
+	siCommon "github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const (

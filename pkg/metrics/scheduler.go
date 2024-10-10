@@ -26,8 +26,8 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/log"
 )
 
 const (

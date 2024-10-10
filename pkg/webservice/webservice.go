@@ -29,9 +29,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/metrics/history"
-	"github.com/apache/yunikorn-core/pkg/scheduler"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/metrics/history"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler"
 )
 
 var imHistory *history.InternalMetricsHistory

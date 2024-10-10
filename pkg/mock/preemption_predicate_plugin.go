@@ -22,9 +22,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/apache/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
 
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 type PreemptionPredicatePlugin struct {

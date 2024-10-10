@@ -26,9 +26,9 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/entrypoint"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/entrypoint"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 //nolint:funlen

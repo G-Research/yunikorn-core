@@ -21,11 +21,11 @@ package ugm
 import (
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/webservice/dao"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
 )
 
 // The QueueTracker is designed to be lock free and should remain as such.

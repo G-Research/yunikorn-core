@@ -24,9 +24,9 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/events/mock"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/events/mock"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 var requestResource = resources.NewResourceFromMap(map[string]resources.Quantity{

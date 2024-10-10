@@ -23,9 +23,9 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/scheduler/policies"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/policies"
 )
 
 func TestNewNodeSortingPolicy(t *testing.T) {

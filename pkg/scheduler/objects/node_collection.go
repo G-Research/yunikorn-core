@@ -24,9 +24,9 @@ import (
 	"github.com/google/btree"
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/scheduler/policies"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/policies"
 )
 
 var acceptUnreserved = func(node *Node) bool {

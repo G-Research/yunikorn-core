@@ -27,7 +27,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
 )
 
 var qm *QueueMetrics

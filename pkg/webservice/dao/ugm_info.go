@@ -18,7 +18,7 @@
 
 package dao
 
-import "github.com/apache/yunikorn-core/pkg/common/resources"
+import "github.com/G-Research/yunikorn-core/pkg/common/resources"
 
 type UserResourceUsageDAOInfo struct {
 	UserName string                `json:"userName"` // no omitempty, user name should not be empty

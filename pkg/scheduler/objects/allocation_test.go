@@ -28,11 +28,11 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/events/mock"
-	schedEvt "github.com/apache/yunikorn-core/pkg/scheduler/objects/events"
-	siCommon "github.com/apache/yunikorn-scheduler-interface/lib/go/common"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/events/mock"
+	schedEvt "github.com/G-Research/yunikorn-core/pkg/scheduler/objects/events"
+	siCommon "github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const past = 1640995200 // 2022-1-1 00:00:00

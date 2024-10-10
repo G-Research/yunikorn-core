@@ -17,12 +17,12 @@
 // under the License.
 //
 
-module github.com/apache/yunikorn-core
+module github.com/G-Research/yunikorn-core
 
 go 1.21
 
 require (
-	github.com/apache/yunikorn-scheduler-interface v0.0.0-20240924203603-aaf51c93d3a0
+	github.com/G-Research/yunikorn-scheduler-interface v0.0.0-20241010085204-da837381ae08
 	github.com/google/btree v1.1.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
@@ -56,6 +56,7 @@ require (
 )
 
 replace (
+	github.com/petermattis/goid => github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7
 	golang.org/x/crypto => golang.org/x/crypto v0.26.0
 	golang.org/x/net => golang.org/x/net v0.28.0
 	golang.org/x/sys => golang.org/x/sys v0.24.0

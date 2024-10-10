@@ -21,7 +21,7 @@ package metrics
 import (
 	"sync"
 
-	"github.com/apache/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
 )
 
 const (

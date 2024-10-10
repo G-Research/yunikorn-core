@@ -23,7 +23,7 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
 )
 
 func TestAddRemoveHost(t *testing.T) {

@@ -18,7 +18,7 @@
 
 package dao
 
-import "github.com/apache/yunikorn-core/pkg/common/configs"
+import "github.com/G-Research/yunikorn-core/pkg/common/configs"
 
 type ValidateConfResponse struct {
 	Allowed bool   `json:"allowed"` // no omitempty, a false value gives a quick way to understand the result.

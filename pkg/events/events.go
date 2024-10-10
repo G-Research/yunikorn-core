@@ -21,8 +21,8 @@ package events
 import (
 	"time"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 func createEventRecord(recordType si.EventRecord_Type, objectID, referenceID, message string,

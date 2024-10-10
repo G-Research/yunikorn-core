@@ -19,7 +19,7 @@
 package mock
 
 import (
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 type ResourceManagerCallback struct{}

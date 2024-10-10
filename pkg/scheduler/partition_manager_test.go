@@ -23,9 +23,9 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/security"
-	"github.com/apache/yunikorn-core/pkg/scheduler/objects"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/security"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/objects"
 )
 
 func createPartitionContext(t *testing.T) *PartitionContext {

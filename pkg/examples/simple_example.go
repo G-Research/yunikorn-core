@@ -19,10 +19,10 @@
 package examples
 
 import (
-	"github.com/apache/yunikorn-core/pkg/entrypoint"
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-core/pkg/mock"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/entrypoint"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/mock"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 type exampleRMCallback struct {

@@ -21,8 +21,8 @@ package scheduler
 import (
 	"time"
 
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/metrics"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/metrics"
 )
 
 type nodesResourceUsageMonitor struct {

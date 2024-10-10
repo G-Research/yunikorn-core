@@ -26,13 +26,13 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/common/security"
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/common/security"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/log"
 )
 
 var once sync.Once

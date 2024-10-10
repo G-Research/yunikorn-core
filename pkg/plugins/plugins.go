@@ -19,8 +19,8 @@
 package plugins
 
 import (
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/api"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/api"
 )
 
 var plugins SchedulerPlugins

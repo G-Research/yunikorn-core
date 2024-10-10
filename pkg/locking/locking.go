@@ -28,7 +28,7 @@ import (
 
 	godeadlock "github.com/sasha-s/go-deadlock"
 
-	"github.com/apache/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/log"
 )
 
 const (

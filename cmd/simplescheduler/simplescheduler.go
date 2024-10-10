@@ -24,8 +24,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 type SimpleScheduler struct {
