@@ -24,12 +24,12 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/metrics"
-	"github.com/apache/yunikorn-core/pkg/scheduler/objects"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/metrics"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/objects"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const configDefault = `

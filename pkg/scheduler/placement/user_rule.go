@@ -25,11 +25,11 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/scheduler/objects"
-	"github.com/apache/yunikorn-core/pkg/scheduler/placement/types"
-	"github.com/apache/yunikorn-core/pkg/webservice/dao"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/objects"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/placement/types"
+	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
 )
 
 // A rule to place an application based on the user name of the submitting user.

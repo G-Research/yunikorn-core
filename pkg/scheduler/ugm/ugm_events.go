@@ -19,10 +19,10 @@
 package ugm
 
 import (
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 type ugmEvents struct {

@@ -23,10 +23,10 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/events/mock"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/events/mock"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const nodeID1 = "node-1"
@@ -35,12 +35,12 @@ func TestSendNodeAddedEvent(t *testing.T) {
 	resource := resources.NewResourceFromMap(map[string]resources.Quantity{"first": 1})
 	eventSystem := mock.NewEventSystemDisabled()
 	ne := NewNodeEvents(eventSystem)
-	ne.SendNodeAddedEvent(nodeID1, resource)
+	ne.SendNodeAddedEvent(nodeID1, resource, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	ne = NewNodeEvents(eventSystem)
-	ne.SendNodeAddedEvent(nodeID1, resource)
+	ne.SendNodeAddedEvent(nodeID1, resource, "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 	event := eventSystem.Events[0]
 	assert.Equal(t, nodeID1, event.ObjectID)
@@ -56,12 +56,12 @@ func TestSendNodeAddedEvent(t *testing.T) {
 func TestSendNodeRemovedEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	ne := NewNodeEvents(eventSystem)
-	ne.SendNodeRemovedEvent(nodeID1)
+	ne.SendNodeRemovedEvent(nodeID1, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	ne = NewNodeEvents(eventSystem)
-	ne.SendNodeRemovedEvent(nodeID1)
+	ne.SendNodeRemovedEvent(nodeID1, "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 	event := eventSystem.Events[0]
 	assert.Equal(t, nodeID1, event.ObjectID)
@@ -77,12 +77,12 @@ func TestSendAllocationAddedEvent(t *testing.T) {
 
 	eventSystem := mock.NewEventSystemDisabled()
 	ne := NewNodeEvents(eventSystem)
-	ne.SendAllocationAddedEvent(nodeID1, "alloc-0", resource)
+	ne.SendAllocationAddedEvent(nodeID1, "alloc-0", resource, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	ne = NewNodeEvents(eventSystem)
-	ne.SendAllocationAddedEvent(nodeID1, "alloc-0", resource)
+	ne.SendAllocationAddedEvent(nodeID1, "alloc-0", resource, "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 	event := eventSystem.Events[0]
 	assert.Equal(t, nodeID1, event.ObjectID)
@@ -100,12 +100,12 @@ func TestSendAllocationRemovedEvent(t *testing.T) {
 
 	eventSystem := mock.NewEventSystemDisabled()
 	ne := NewNodeEvents(eventSystem)
-	ne.SendAllocationRemovedEvent(nodeID1, "alloc-0", resource)
+	ne.SendAllocationRemovedEvent(nodeID1, "alloc-0", resource, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	ne = NewNodeEvents(eventSystem)
-	ne.SendAllocationRemovedEvent(nodeID1, "alloc-0", resource)
+	ne.SendAllocationRemovedEvent(nodeID1, "alloc-0", resource, "")
 	event := eventSystem.Events[0]
 	assert.Equal(t, nodeID1, event.ObjectID)
 	assert.Equal(t, "alloc-0", event.ReferenceID)
@@ -121,12 +121,12 @@ func TestSendOccupiedResourceChangedEvent(t *testing.T) {
 	resource := resources.NewResourceFromMap(map[string]resources.Quantity{"first": 1})
 	eventSystem := mock.NewEventSystemDisabled()
 	ne := NewNodeEvents(eventSystem)
-	ne.SendNodeOccupiedResourceChangedEvent(nodeID1, resource)
+	ne.SendNodeOccupiedResourceChangedEvent(nodeID1, resource, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	ne = NewNodeEvents(eventSystem)
-	ne.SendNodeOccupiedResourceChangedEvent(nodeID1, resource)
+	ne.SendNodeOccupiedResourceChangedEvent(nodeID1, resource, "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 	event := eventSystem.Events[0]
 	assert.Equal(t, nodeID1, event.ObjectID)
@@ -143,12 +143,12 @@ func TestSendCapacityChangedEvent(t *testing.T) {
 	resource := resources.NewResourceFromMap(map[string]resources.Quantity{"first": 1})
 	eventSystem := mock.NewEventSystemDisabled()
 	ne := NewNodeEvents(eventSystem)
-	ne.SendNodeCapacityChangedEvent(nodeID1, resource)
+	ne.SendNodeCapacityChangedEvent(nodeID1, resource, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	ne = NewNodeEvents(eventSystem)
-	ne.SendNodeCapacityChangedEvent(nodeID1, resource)
+	ne.SendNodeCapacityChangedEvent(nodeID1, resource, "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 	event := eventSystem.Events[0]
 	assert.Equal(t, nodeID1, event.ObjectID)
@@ -164,12 +164,12 @@ func TestSendCapacityChangedEvent(t *testing.T) {
 func TestNodeSchedulableChangedEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	ne := NewNodeEvents(eventSystem)
-	ne.SendNodeSchedulableChangedEvent(nodeID1, false)
+	ne.SendNodeSchedulableChangedEvent(nodeID1, false, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	ne = NewNodeEvents(eventSystem)
-	ne.SendNodeSchedulableChangedEvent(nodeID1, false)
+	ne.SendNodeSchedulableChangedEvent(nodeID1, false, "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 	event := eventSystem.Events[0]
 	assert.Equal(t, nodeID1, event.ObjectID)
@@ -180,7 +180,7 @@ func TestNodeSchedulableChangedEvent(t *testing.T) {
 	assert.Equal(t, 0, len(event.Resource.Resources))
 
 	eventSystem.Reset()
-	ne.SendNodeSchedulableChangedEvent(nodeID1, true)
+	ne.SendNodeSchedulableChangedEvent(nodeID1, true, "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 	event = eventSystem.Events[0]
 	assert.Equal(t, nodeID1, event.ObjectID)
@@ -195,12 +195,12 @@ func TestNodeReservationEvent(t *testing.T) {
 	resource := resources.NewResourceFromMap(map[string]resources.Quantity{"first": 1})
 	eventSystem := mock.NewEventSystemDisabled()
 	ne := NewNodeEvents(eventSystem)
-	ne.SendReservedEvent(nodeID1, resource, "alloc-0")
+	ne.SendReservedEvent(nodeID1, resource, "alloc-0", "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	ne = NewNodeEvents(eventSystem)
-	ne.SendReservedEvent(nodeID1, resource, "alloc-0")
+	ne.SendReservedEvent(nodeID1, resource, "alloc-0", "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 	event := eventSystem.Events[0]
 	assert.Equal(t, nodeID1, event.ObjectID)
@@ -217,12 +217,12 @@ func TestNodeUnreservationEvent(t *testing.T) {
 	resource := resources.NewResourceFromMap(map[string]resources.Quantity{"first": 1})
 	eventSystem := mock.NewEventSystemDisabled()
 	ne := NewNodeEvents(eventSystem)
-	ne.SendUnreservedEvent(nodeID1, resource, "alloc-0")
+	ne.SendUnreservedEvent(nodeID1, resource, "alloc-0", "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	ne = NewNodeEvents(eventSystem)
-	ne.SendUnreservedEvent(nodeID1, resource, "alloc-0")
+	ne.SendUnreservedEvent(nodeID1, resource, "alloc-0", "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 	event := eventSystem.Events[0]
 	assert.Equal(t, nodeID1, event.ObjectID)

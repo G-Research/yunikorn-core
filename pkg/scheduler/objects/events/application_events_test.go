@@ -23,10 +23,10 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/events/mock"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/events/mock"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const (
@@ -38,25 +38,25 @@ const (
 func TestSendPlaceholderLargerEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendPlaceholderLargerEvent(taskGroup, appID, allocKey, resources.NewResource(), resources.NewResource())
+	appEvents.SendPlaceholderLargerEvent(taskGroup, appID, allocKey, resources.NewResource(), resources.NewResource(), "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	appEvents = NewApplicationEvents(eventSystem)
-	appEvents.SendPlaceholderLargerEvent(taskGroup, appID, allocKey, resources.NewResource(), resources.NewResource())
+	appEvents.SendPlaceholderLargerEvent(taskGroup, appID, allocKey, resources.NewResource(), resources.NewResource(), "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 }
 
 func TestSendNewAllocationEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendNewAllocationEvent(appID, allocKey, resources.NewResource())
+	appEvents.SendNewAllocationEvent(appID, allocKey, resources.NewResource(), "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	appEvents = NewApplicationEvents(eventSystem)
 	assert.Assert(t, appEvents.eventSystem != nil, "event system should not be nil")
-	appEvents.SendNewAllocationEvent(appID, allocKey, resources.NewResource())
+	appEvents.SendNewAllocationEvent(appID, allocKey, resources.NewResource(), "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 	assert.Equal(t, si.EventRecord_APP, eventSystem.Events[0].Type, "event type is not expected")
 	assert.Equal(t, si.EventRecord_ADD, eventSystem.Events[0].EventChangeType, "event change type is not expected")
@@ -69,13 +69,13 @@ func TestSendNewAllocationEvent(t *testing.T) {
 func TestSendNewAskEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendNewAskEvent(appID, allocKey, resources.NewResource())
+	appEvents.SendNewAskEvent(appID, allocKey, resources.NewResource(), "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	appEvents = NewApplicationEvents(eventSystem)
 	assert.Assert(t, appEvents.eventSystem != nil, "event system should not be nil")
-	appEvents.SendNewAskEvent(appID, allocKey, resources.NewResource())
+	appEvents.SendNewAskEvent(appID, allocKey, resources.NewResource(), "")
 	assert.Equal(t, 1, len(eventSystem.Events), "event was not generated")
 	assert.Equal(t, si.EventRecord_APP, eventSystem.Events[0].Type, "event type is not expected")
 	assert.Equal(t, si.EventRecord_ADD, eventSystem.Events[0].EventChangeType, "event change type is not expected")
@@ -88,7 +88,7 @@ func TestSendNewAskEvent(t *testing.T) {
 func TestSendRemoveAllocationEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendRemoveAllocationEvent(appID, allocKey, resources.NewResource(), si.TerminationType_STOPPED_BY_RM)
+	appEvents.SendRemoveAllocationEvent(appID, allocKey, resources.NewResource(), si.TerminationType_STOPPED_BY_RM, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	testCases := []struct {
@@ -151,11 +151,11 @@ func TestSendRemoveAllocationEvent(t *testing.T) {
 			if testCase.eventSystemMock == nil {
 				appEvt := NewApplicationEvents(nil)
 				assert.Assert(t, appEvt.eventSystem == nil, "event system should be nil")
-				appEvt.SendRemoveAllocationEvent(appID, allocKey, resources.NewResource(), testCase.terminationType)
+				appEvt.SendRemoveAllocationEvent(appID, allocKey, resources.NewResource(), testCase.terminationType, "")
 			} else {
 				appEvt := NewApplicationEvents(testCase.eventSystemMock)
 				assert.Assert(t, appEvt.eventSystem != nil, "event system should not be nil")
-				appEvt.SendRemoveAllocationEvent(appID, allocKey, resources.NewResource(), testCase.terminationType)
+				appEvt.SendRemoveAllocationEvent(appID, allocKey, resources.NewResource(), testCase.terminationType, "")
 				assert.Equal(t, testCase.expectedEventCnt, len(testCase.eventSystemMock.Events), "event was not generated")
 				assert.Equal(t, testCase.expectedType, testCase.eventSystemMock.Events[0].Type, "event type is not expected")
 				assert.Equal(t, testCase.expectedChangeType, testCase.eventSystemMock.Events[0].EventChangeType, "event change type is not expected")
@@ -171,12 +171,12 @@ func TestSendRemoveAllocationEvent(t *testing.T) {
 func TestSendRemoveAskEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendRemoveAskEvent(appID, allocKey, resources.NewResource(), si.EventRecord_REQUEST_CANCEL)
+	appEvents.SendRemoveAskEvent(appID, allocKey, resources.NewResource(), si.EventRecord_REQUEST_CANCEL, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	appEvents = NewApplicationEvents(eventSystem)
-	appEvents.SendRemoveAskEvent(appID, allocKey, resources.NewResource(), si.EventRecord_REQUEST_CANCEL)
+	appEvents.SendRemoveAskEvent(appID, allocKey, resources.NewResource(), si.EventRecord_REQUEST_CANCEL, "")
 	event := eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_APP, event.Type)
 	assert.Equal(t, si.EventRecord_REMOVE, event.EventChangeType)
@@ -186,7 +186,7 @@ func TestSendRemoveAskEvent(t *testing.T) {
 	assert.Equal(t, "", event.Message)
 
 	eventSystem.Reset()
-	appEvents.SendRemoveAskEvent(appID, allocKey, resources.NewResource(), si.EventRecord_REQUEST_TIMEOUT)
+	appEvents.SendRemoveAskEvent(appID, allocKey, resources.NewResource(), si.EventRecord_REQUEST_TIMEOUT, "")
 	event = eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_APP, event.Type)
 	assert.Equal(t, si.EventRecord_REMOVE, event.EventChangeType)
@@ -199,12 +199,12 @@ func TestSendRemoveAskEvent(t *testing.T) {
 func TestSendNewApplicationEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendNewApplicationEvent(appID)
+	appEvents.SendNewApplicationEvent(appID, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	mockEvents := mock.NewEventSystem()
 	appEvents = NewApplicationEvents(mockEvents)
-	appEvents.SendNewApplicationEvent(appID)
+	appEvents.SendNewApplicationEvent(appID, "")
 	event := mockEvents.Events[0]
 	assert.Equal(t, si.EventRecord_APP, event.Type)
 	assert.Equal(t, si.EventRecord_ADD, event.EventChangeType)
@@ -235,12 +235,12 @@ func TestSendRemoveApplicationEvent(t *testing.T) {
 func TestSendStateChangeEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendStateChangeEvent(appID, si.EventRecord_APP_RUNNING, "")
+	appEvents.SendStateChangeEvent(appID, si.EventRecord_APP_RUNNING, "", "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	appEvents = NewApplicationEvents(eventSystem)
-	appEvents.SendStateChangeEvent(appID, si.EventRecord_APP_RUNNING, "The application is running")
+	appEvents.SendStateChangeEvent(appID, si.EventRecord_APP_RUNNING, "The application is running", "")
 	event := eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_APP, event.Type)
 	assert.Equal(t, si.EventRecord_SET, event.EventChangeType)
@@ -251,12 +251,12 @@ func TestSendStateChangeEvent(t *testing.T) {
 
 	eventSystem = mock.NewEventSystemDisabled()
 	appEvents = NewApplicationEvents(eventSystem)
-	appEvents.SendStateChangeEvent(appID, si.EventRecord_APP_RUNNING, "ResourceReservationTimeout")
+	appEvents.SendStateChangeEvent(appID, si.EventRecord_APP_RUNNING, "ResourceReservationTimeout", "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	appEvents = NewApplicationEvents(eventSystem)
-	appEvents.SendStateChangeEvent(appID, si.EventRecord_APP_REJECT, "Failed to add application to partition (placement rejected)")
+	appEvents.SendStateChangeEvent(appID, si.EventRecord_APP_REJECT, "Failed to add application to partition (placement rejected)", "")
 	event = eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_APP, event.Type)
 	assert.Equal(t, si.EventRecord_SET, event.EventChangeType)
@@ -269,12 +269,12 @@ func TestSendStateChangeEvent(t *testing.T) {
 func TestSendAppCannotRunInQueueEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendAppNotRunnableInQueueEvent(appID)
+	appEvents.SendAppNotRunnableInQueueEvent(appID, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	appEvents = NewApplicationEvents(eventSystem)
-	appEvents.SendAppNotRunnableInQueueEvent(appID)
+	appEvents.SendAppNotRunnableInQueueEvent(appID, "")
 	event := eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_APP, event.Type)
 	assert.Equal(t, si.EventRecord_NONE, event.EventChangeType)
@@ -287,12 +287,12 @@ func TestSendAppCannotRunInQueueEvent(t *testing.T) {
 func TestSendAppCannotRunByQuotaEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendAppNotRunnableQuotaEvent(appID)
+	appEvents.SendAppNotRunnableQuotaEvent(appID, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	appEvents = NewApplicationEvents(eventSystem)
-	appEvents.SendAppNotRunnableQuotaEvent(appID)
+	appEvents.SendAppNotRunnableQuotaEvent(appID, "")
 	event := eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_APP, event.Type)
 	assert.Equal(t, si.EventRecord_NONE, event.EventChangeType)
@@ -305,12 +305,12 @@ func TestSendAppCannotRunByQuotaEvent(t *testing.T) {
 func TestSendAppRunnableInQueueEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendAppRunnableInQueueEvent(appID)
+	appEvents.SendAppRunnableInQueueEvent(appID, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	appEvents = NewApplicationEvents(eventSystem)
-	appEvents.SendAppRunnableInQueueEvent(appID)
+	appEvents.SendAppRunnableInQueueEvent(appID, "")
 	event := eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_APP, event.Type)
 	assert.Equal(t, si.EventRecord_NONE, event.EventChangeType)
@@ -323,12 +323,12 @@ func TestSendAppRunnableInQueueEvent(t *testing.T) {
 func TestSendAppRunnableByQuotaEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendAppRunnableQuotaEvent(appID)
+	appEvents.SendAppRunnableQuotaEvent(appID, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	appEvents = NewApplicationEvents(eventSystem)
-	appEvents.SendAppRunnableQuotaEvent(appID)
+	appEvents.SendAppRunnableQuotaEvent(appID, "")
 	event := eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_APP, event.Type)
 	assert.Equal(t, si.EventRecord_NONE, event.EventChangeType)

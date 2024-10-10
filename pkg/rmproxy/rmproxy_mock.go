@@ -19,8 +19,8 @@
 package rmproxy
 
 import (
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-core/pkg/rmproxy/rmevent"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/rmproxy/rmevent"
 )
 
 // MockedRMProxy Implements RMProxy Mock Event Handler for testing

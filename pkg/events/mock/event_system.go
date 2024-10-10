@@ -19,8 +19,8 @@
 package mock
 
 import (
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 type EventSystem struct {

@@ -21,8 +21,8 @@ package objects
 import (
 	"sort"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
 )
 
 type PreemptionContext struct {

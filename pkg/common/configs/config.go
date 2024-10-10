@@ -29,7 +29,7 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 
-	"github.com/apache/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/log"
 )
 
 // The configuration can contain multiple partitions. Each partition contains the queue definition for a logical

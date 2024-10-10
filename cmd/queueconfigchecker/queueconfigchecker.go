@@ -22,7 +22,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/apache/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
 )
 
 /*

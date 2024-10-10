@@ -27,7 +27,7 @@ import (
 	"golang.org/x/exp/maps"
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
 )
 
 func CheckLenOfResource(res *Resource, expected int) (bool, string) {

@@ -19,7 +19,9 @@
 package objects
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -29,19 +31,19 @@ import (
 	"github.com/looplab/fsm"
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/common/security"
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/metrics"
-	schedEvt "github.com/apache/yunikorn-core/pkg/scheduler/objects/events"
-	"github.com/apache/yunikorn-core/pkg/scheduler/objects/template"
-	"github.com/apache/yunikorn-core/pkg/scheduler/policies"
-	"github.com/apache/yunikorn-core/pkg/scheduler/ugm"
-	"github.com/apache/yunikorn-core/pkg/webservice/dao"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/common/security"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/metrics"
+	schedEvt "github.com/G-Research/yunikorn-core/pkg/scheduler/objects/events"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/objects/template"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/policies"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/ugm"
+	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
 )
 
 var (
@@ -89,7 +91,19 @@ type Queue struct {
 	template               *template.Template
 	queueEvents            *schedEvt.QueueEvents
 
+	snapshot bytes.Buffer
+
 	locking.RWMutex
+}
+
+func (sq *Queue) daoSnapshot() string {
+	if err := json.NewEncoder(&sq.snapshot).Encode(sq.getPartitionQueueDAOInfo(false)); err != nil {
+		// TODO: log error
+		return ""
+	}
+	val := sq.snapshot.String()
+	sq.snapshot.Reset()
+	return val
 }
 
 // newBlankQueue creates a new empty queue objects with all values initialised.
@@ -145,7 +159,7 @@ func NewConfiguredQueue(conf configs.QueueConfig, parent *Queue) (*Queue, error)
 	sq.queueEvents = schedEvt.NewQueueEvents(events.GetEventSystem())
 	log.Log(log.SchedQueue).Info("configured queue added to scheduler",
 		zap.String("queueName", sq.QueuePath))
-	sq.queueEvents.SendNewQueueEvent(sq.QueuePath, sq.isManaged)
+	sq.queueEvents.SendNewQueueEvent(sq.QueuePath, sq.isManaged, sq.daoSnapshot())
 
 	return sq, nil
 }
@@ -206,7 +220,7 @@ func newDynamicQueueInternal(name string, leaf bool, parent *Queue) (*Queue, err
 	sq.queueEvents = schedEvt.NewQueueEvents(events.GetEventSystem())
 	log.Log(log.SchedQueue).Info("dynamic queue added to scheduler",
 		zap.String("queueName", sq.QueuePath))
-	sq.queueEvents.SendNewQueueEvent(sq.QueuePath, sq.isManaged)
+	sq.queueEvents.SendNewQueueEvent(sq.QueuePath, sq.isManaged, sq.daoSnapshot())
 
 	return sq, nil
 }
@@ -349,7 +363,7 @@ func (sq *Queue) applyConf(conf configs.QueueConfig) error {
 	}
 
 	if prevLeaf != sq.isLeaf && sq.queueEvents != nil {
-		sq.queueEvents.SendTypeChangedEvent(sq.QueuePath, sq.isLeaf)
+		sq.queueEvents.SendTypeChangedEvent(sq.QueuePath, sq.isLeaf, sq.daoSnapshot())
 	}
 
 	if !sq.isLeaf {
@@ -400,7 +414,7 @@ func (sq *Queue) setResources(guaranteedResource, maxResource *resources.Resourc
 			zap.Stringer("current", sq.maxResource),
 			zap.Stringer("new", maxResource))
 		if !resources.Equals(sq.maxResource, maxResource) && sq.queueEvents != nil {
-			sq.queueEvents.SendMaxResourceChangedEvent(sq.QueuePath, maxResource)
+			sq.queueEvents.SendMaxResourceChangedEvent(sq.QueuePath, maxResource, sq.daoSnapshot())
 		}
 		sq.maxResource = maxResource
 		sq.updateMaxResourceMetrics()
@@ -410,7 +424,7 @@ func (sq *Queue) setResources(guaranteedResource, maxResource *resources.Resourc
 			zap.Stringer("current", sq.maxResource),
 			zap.Stringer("new", maxResource))
 		if sq.queueEvents != nil {
-			sq.queueEvents.SendMaxResourceChangedEvent(sq.QueuePath, maxResource)
+			sq.queueEvents.SendMaxResourceChangedEvent(sq.QueuePath, maxResource, sq.daoSnapshot())
 		}
 		sq.maxResource = nil
 		sq.updateMaxResourceMetrics()
@@ -426,7 +440,7 @@ func (sq *Queue) setResources(guaranteedResource, maxResource *resources.Resourc
 			zap.Stringer("current", sq.guaranteedResource),
 			zap.Stringer("new", guaranteedResource))
 		if !resources.Equals(sq.guaranteedResource, guaranteedResource) && sq.queueEvents != nil {
-			sq.queueEvents.SendGuaranteedResourceChangedEvent(sq.QueuePath, guaranteedResource)
+			sq.queueEvents.SendGuaranteedResourceChangedEvent(sq.QueuePath, guaranteedResource, sq.daoSnapshot())
 		}
 		sq.guaranteedResource = guaranteedResource
 		sq.updateGuaranteedResourceMetrics()
@@ -436,7 +450,7 @@ func (sq *Queue) setResources(guaranteedResource, maxResource *resources.Resourc
 			zap.Stringer("current", sq.guaranteedResource),
 			zap.Stringer("new", guaranteedResource))
 		if sq.queueEvents != nil {
-			sq.queueEvents.SendGuaranteedResourceChangedEvent(sq.QueuePath, guaranteedResource)
+			sq.queueEvents.SendGuaranteedResourceChangedEvent(sq.QueuePath, guaranteedResource, sq.daoSnapshot())
 		}
 		sq.guaranteedResource = nil
 		sq.updateGuaranteedResourceMetrics()
@@ -675,10 +689,56 @@ func (sq *Queue) GetPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 		}
 	}
 	// we have held the read lock so following method should not take lock again.
-	queueInfo.HeadRoom = sq.getHeadRoom().DAOMap()
+	queueInfo.HeadRoom = sq.getHeadRoomLocked().DAOMap()
 	sq.RLock()
 	defer sq.RUnlock()
 
+	for _, child := range children {
+		queueInfo.ChildNames = append(queueInfo.ChildNames, child.QueuePath)
+	}
+	queueInfo.QueueName = sq.QueuePath
+	queueInfo.Status = sq.stateMachine.Current()
+	queueInfo.PendingResource = sq.pending.DAOMap()
+	queueInfo.MaxResource = sq.maxResource.DAOMap()
+	queueInfo.GuaranteedResource = sq.guaranteedResource.DAOMap()
+	queueInfo.AllocatedResource = sq.allocatedResource.DAOMap()
+	queueInfo.PreemptingResource = sq.preemptingResource.DAOMap()
+	queueInfo.IsLeaf = sq.isLeaf
+	queueInfo.IsManaged = sq.isManaged
+	queueInfo.CurrentPriority = sq.getCurrentPriority()
+	queueInfo.TemplateInfo = sq.template.GetTemplateInfo()
+	queueInfo.AbsUsedCapacity = resources.CalculateAbsUsedCapacity(sq.maxResource, sq.allocatedResource).DAOMap()
+	queueInfo.Properties = make(map[string]string)
+	for k, v := range sq.properties {
+		queueInfo.Properties[k] = v
+	}
+	if sq.parent == nil {
+		queueInfo.Parent = ""
+	} else {
+		queueInfo.Parent = sq.QueuePath[:strings.LastIndex(sq.QueuePath, configs.DOT)]
+	}
+	queueInfo.MaxRunningApps = sq.maxRunningApps
+	queueInfo.RunningApps = sq.runningApps
+	queueInfo.AllocatingAcceptedApps = make([]string, 0)
+	for appID, result := range sq.allocatingAcceptedApps {
+		if result {
+			queueInfo.AllocatingAcceptedApps = append(queueInfo.AllocatingAcceptedApps, appID)
+		}
+	}
+	return queueInfo
+}
+
+func (sq *Queue) getPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInfo {
+	queueInfo := dao.PartitionQueueDAOInfo{}
+	children := sq.getCopyOfChildren()
+	if include {
+		queueInfo.Children = make([]dao.PartitionQueueDAOInfo, 0, len(children))
+		for _, child := range children {
+			queueInfo.Children = append(queueInfo.Children, child.getPartitionQueueDAOInfo(true))
+		}
+	}
+	// we have held the read lock so following method should not take lock again.
+	queueInfo.HeadRoom = sq.getHeadRoom().DAOMap()
 	for _, child := range children {
 		queueInfo.ChildNames = append(queueInfo.ChildNames, child.QueuePath)
 	}
@@ -771,7 +831,7 @@ func (sq *Queue) AddApplication(app *Application) {
 	defer sq.Unlock()
 	appID := app.ApplicationID
 	sq.applications[appID] = app
-	sq.queueEvents.SendNewApplicationEvent(sq.QueuePath, appID)
+	sq.queueEvents.SendNewApplicationEvent(sq.QueuePath, appID, sq.daoSnapshot())
 }
 
 // RemoveApplication removes the app from the list of tracked applications. Make sure that the app
@@ -786,7 +846,7 @@ func (sq *Queue) RemoveApplication(app *Application) {
 			zap.String("applicationID", appID))
 		return
 	}
-	sq.queueEvents.SendRemoveApplicationEvent(sq.QueuePath, appID)
+	sq.queueEvents.SendRemoveApplicationEvent(sq.QueuePath, appID, sq.daoSnapshot())
 	if appPending := app.GetPendingResource(); !resources.IsZero(appPending) {
 		sq.decPendingResource(appPending)
 	}
@@ -823,7 +883,7 @@ func (sq *Queue) RemoveApplication(app *Application) {
 	delete(sq.allocatingAcceptedApps, appID)
 	priority := sq.recalculatePriority()
 	sq.Unlock()
-	app.appEvents.SendRemoveApplicationEvent(appID)
+	app.appEvents.SendRemoveApplicationEvent(appID, app.daoSnapshot())
 
 	sq.parent.UpdateQueuePriority(sq.Name, priority)
 
@@ -858,6 +918,10 @@ func (sq *Queue) GetCopyOfApps() map[string]*Application {
 func (sq *Queue) GetCopyOfChildren() map[string]*Queue {
 	sq.RLock()
 	defer sq.RUnlock()
+	return sq.getCopyOfChildren()
+}
+
+func (sq *Queue) getCopyOfChildren() map[string]*Queue {
 	childCopy := make(map[string]*Queue)
 	for k, v := range sq.children {
 		childCopy[k] = v
@@ -988,7 +1052,7 @@ func (sq *Queue) RemoveQueue() bool {
 	log.Log(log.SchedQueue).Info("removing queue", zap.String("queue", sq.QueuePath))
 	// root is always managed and is the only queue with a nil parent: no need to guard
 	sq.parent.removeChildQueue(sq.Name)
-	sq.queueEvents.SendRemoveQueueEvent(sq.QueuePath, sq.isManaged)
+	sq.queueEvents.SendRemoveQueueEvent(sq.QueuePath, sq.isManaged, sq.daoSnapshot())
 	return true
 }
 
@@ -1216,6 +1280,14 @@ func (sq *Queue) sortQueues() []*Queue {
 // In case there are no nodes in a newly started cluster and no queues have a limit configured this call
 // will return nil.
 // NOTE: if a resource quantity is missing and a limit is defined the missing quantity will be seen as no limit.
+func (sq *Queue) getHeadRoomLocked() *resources.Resource {
+	var parentHeadRoom *resources.Resource
+	if sq.parent != nil {
+		parentHeadRoom = sq.parent.getHeadRoomLocked()
+	}
+	return sq.internalHeadRoomLocked(parentHeadRoom)
+}
+
 func (sq *Queue) getHeadRoom() *resources.Resource {
 	var parentHeadRoom *resources.Resource
 	if sq.parent != nil {
@@ -1235,13 +1307,17 @@ func (sq *Queue) getMaxHeadRoom() *resources.Resource {
 	} else {
 		return nil
 	}
-	return sq.internalHeadRoom(parentHeadRoom)
+	return sq.internalHeadRoomLocked(parentHeadRoom)
 }
 
 // internalHeadRoom does the real headroom calculation.
-func (sq *Queue) internalHeadRoom(parentHeadRoom *resources.Resource) *resources.Resource {
+func (sq *Queue) internalHeadRoomLocked(parentHeadRoom *resources.Resource) *resources.Resource {
 	sq.RLock()
 	defer sq.RUnlock()
+	return sq.internalHeadRoom(parentHeadRoom)
+}
+
+func (sq *Queue) internalHeadRoom(parentHeadRoom *resources.Resource) *resources.Resource {
 	headRoom := sq.maxResource
 
 	// if we have no max set headroom is always the same as the parent
@@ -1361,7 +1437,7 @@ func (sq *Queue) SetMaxResource(max *resources.Resource) {
 			zap.Stringer("current", sq.maxResource),
 			zap.Stringer("new", max))
 		if !resources.Equals(sq.maxResource, max) && sq.queueEvents != nil {
-			sq.queueEvents.SendMaxResourceChangedEvent(sq.QueuePath, sq.maxResource)
+			sq.queueEvents.SendMaxResourceChangedEvent(sq.QueuePath, sq.maxResource, sq.daoSnapshot())
 		}
 		sq.maxResource = max.Clone()
 		sq.updateMaxResourceMetrics()
@@ -1371,7 +1447,7 @@ func (sq *Queue) SetMaxResource(max *resources.Resource) {
 			zap.Stringer("current", sq.maxResource),
 			zap.Stringer("new", max))
 		if sq.queueEvents != nil {
-			sq.queueEvents.SendMaxResourceChangedEvent(sq.QueuePath, sq.maxResource)
+			sq.queueEvents.SendMaxResourceChangedEvent(sq.QueuePath, sq.maxResource, sq.daoSnapshot())
 		}
 		sq.maxResource = nil
 		sq.updateMaxResourceMetrics()

@@ -26,12 +26,12 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/plugins"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/api"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/plugins"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/api"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 var (

@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/apache/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
 )
 
 // TrackedResource is a utility struct to keep track of application resource usage.

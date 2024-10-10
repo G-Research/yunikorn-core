@@ -21,10 +21,10 @@ package events
 import (
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/metrics"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/metrics"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 // The EventStore operates under the following assumptions:

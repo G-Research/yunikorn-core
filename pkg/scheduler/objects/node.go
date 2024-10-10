@@ -19,19 +19,22 @@
 package objects
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/plugins"
-	schedEvt "github.com/apache/yunikorn-core/pkg/scheduler/objects/events"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/common"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/plugins"
+	schedEvt "github.com/G-Research/yunikorn-core/pkg/scheduler/objects/events"
+	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const (
@@ -59,7 +62,38 @@ type Node struct {
 	listeners    []NodeListener          // a list of node listeners
 	nodeEvents   *schedEvt.NodeEvents
 
+	snapshot bytes.Buffer
+
 	locking.RWMutex
+}
+
+func (node *Node) dao() *dao.NodeDAOInfo {
+	return &dao.NodeDAOInfo{
+		NodeID:             node.NodeID,
+		HostName:           node.Hostname,
+		RackName:           node.Rackname,
+		Attributes:         node.GetAttributes(),
+		Capacity:           node.totalResource.Clone().DAOMap(),
+		Occupied:           node.occupiedResource.Clone().DAOMap(),
+		Allocated:          node.allocatedResource.Clone().DAOMap(),
+		Available:          node.availableResource.Clone().DAOMap(),
+		Utilized:           node.getUtilizedResource().DAOMap(),
+		Allocations:        getAllocationsDAO(node.getAllocations(false)),
+		ForeignAllocations: getForeignAllocationsDAO(node.getAllocations(true)),
+		Schedulable:        node.schedulable,
+		IsReserved:         len(node.reservations) > 0,
+		Reservations:       node.getReservationKeys(),
+	}
+}
+
+func (node *Node) daoSnapshot() string {
+	if err := json.NewEncoder(&node.snapshot).Encode(node.dao()); err != nil {
+		// TODO: handle error
+		return ""
+	}
+	val := node.snapshot.String()
+	node.snapshot.Reset()
+	return val
 }
 
 func NewNode(proto *si.NodeInfo) *Node {
@@ -149,6 +183,14 @@ func (sn *Node) GetReservationKeys() []string {
 	return keys
 }
 
+func (sn *Node) getReservationKeys() []string {
+	keys := make([]string, 0)
+	for key := range sn.reservations {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
 func (sn *Node) GetCapacity() *resources.Resource {
 	sn.RLock()
 	defer sn.RUnlock()
@@ -173,7 +215,7 @@ func (sn *Node) SetCapacity(newCapacity *resources.Resource) *resources.Resource
 	delta = resources.Sub(newCapacity, sn.totalResource)
 	sn.totalResource = newCapacity
 	sn.refreshAvailableResource()
-	sn.nodeEvents.SendNodeCapacityChangedEvent(sn.NodeID, sn.totalResource.Clone())
+	sn.nodeEvents.SendNodeCapacityChangedEvent(sn.NodeID, sn.totalResource.Clone(), sn.daoSnapshot())
 	return delta
 }
 
@@ -200,7 +242,7 @@ func (sn *Node) SetOccupiedResource(occupiedResource *resources.Resource) {
 		return
 	}
 	sn.occupiedResource = occupiedResource
-	sn.nodeEvents.SendNodeOccupiedResourceChangedEvent(sn.NodeID, sn.occupiedResource.Clone())
+	sn.nodeEvents.SendNodeOccupiedResourceChangedEvent(sn.NodeID, sn.occupiedResource.Clone(), sn.daoSnapshot())
 	sn.refreshAvailableResource()
 }
 
@@ -263,7 +305,7 @@ func (sn *Node) SetSchedulable(schedulable bool) {
 	sn.Lock()
 	defer sn.Unlock()
 	sn.schedulable = schedulable
-	sn.nodeEvents.SendNodeSchedulableChangedEvent(sn.NodeID, sn.schedulable)
+	sn.nodeEvents.SendNodeSchedulableChangedEvent(sn.NodeID, sn.schedulable, sn.daoSnapshot())
 }
 
 // Can this node be used in scheduling.
@@ -309,6 +351,20 @@ func (sn *Node) GetUtilizedResource() *resources.Resource {
 	return &resources.Resource{Resources: utilizedResource}
 }
 
+// Get the utilized resource on this node.
+func (sn *Node) getUtilizedResource() *resources.Resource {
+	total := sn.totalResource.Clone()
+	resourceAllocated := sn.allocatedResource.Clone()
+	utilizedResource := make(map[string]resources.Quantity)
+
+	for name := range resourceAllocated.Resources {
+		if total.Resources[name] > 0 {
+			utilizedResource[name] = resources.CalculateAbsUsedCapacity(total, resourceAllocated).Resources[name]
+		}
+	}
+	return &resources.Resource{Resources: utilizedResource}
+}
+
 // FitInNode checks if the request fits in the node.
 // All resources types requested must match the resource types provided by the nodes.
 // A request may ask for only a subset of the types, but the node must provide at least the
@@ -343,7 +399,7 @@ func (sn *Node) RemoveAllocation(allocationKey string) *Allocation {
 			sn.allocatedResource.Prune()
 		}
 		sn.availableResource.AddTo(alloc.GetAllocatedResource())
-		sn.nodeEvents.SendAllocationRemovedEvent(sn.NodeID, alloc.allocationKey, alloc.GetAllocatedResource())
+		sn.nodeEvents.SendAllocationRemovedEvent(sn.NodeID, alloc.allocationKey, alloc.GetAllocatedResource(), sn.daoSnapshot())
 		return alloc
 	}
 
@@ -390,7 +446,7 @@ func (sn *Node) addAllocationInternal(alloc *Allocation, force bool) bool {
 		}
 		sn.availableResource.SubFrom(res)
 		sn.availableResource.Prune()
-		sn.nodeEvents.SendAllocationAddedEvent(sn.NodeID, alloc.allocationKey, res)
+		sn.nodeEvents.SendAllocationAddedEvent(sn.NodeID, alloc.allocationKey, res, sn.daoSnapshot())
 		result = true
 		return result
 	}
@@ -555,7 +611,7 @@ func (sn *Node) Reserve(app *Application, ask *Allocation) error {
 		return fmt.Errorf("reservation does not fit on node %s, appID %s, ask %s", sn.NodeID, app.ApplicationID, ask.GetAllocatedResource().String())
 	}
 	sn.reservations[appReservation.getKey()] = appReservation
-	sn.nodeEvents.SendReservedEvent(sn.NodeID, ask.GetAllocatedResource(), ask.GetAllocationKey())
+	sn.nodeEvents.SendReservedEvent(sn.NodeID, ask.GetAllocatedResource(), ask.GetAllocationKey(), sn.daoSnapshot())
 	// reservation added successfully
 	return nil
 }
@@ -577,7 +633,7 @@ func (sn *Node) unReserve(app *Application, ask *Allocation) (int, error) {
 	}
 	if _, ok := sn.reservations[resKey]; ok {
 		delete(sn.reservations, resKey)
-		sn.nodeEvents.SendUnreservedEvent(sn.NodeID, ask.GetAllocatedResource(), ask.GetAllocationKey())
+		sn.nodeEvents.SendUnreservedEvent(sn.NodeID, ask.GetAllocatedResource(), ask.GetAllocationKey(), sn.daoSnapshot())
 		return 1, nil
 	}
 	// reservation was not found
@@ -654,9 +710,9 @@ func (sn *Node) getListeners() []NodeListener {
 func (sn *Node) SendNodeAddedEvent() {
 	sn.RLock()
 	defer sn.RUnlock()
-	sn.nodeEvents.SendNodeAddedEvent(sn.NodeID, sn.totalResource.Clone())
+	sn.nodeEvents.SendNodeAddedEvent(sn.NodeID, sn.totalResource.Clone(), sn.daoSnapshot())
 }
 
 func (sn *Node) SendNodeRemovedEvent() {
-	sn.nodeEvents.SendNodeRemovedEvent(sn.NodeID)
+	sn.nodeEvents.SendNodeRemovedEvent(sn.NodeID, sn.daoSnapshot())
 }

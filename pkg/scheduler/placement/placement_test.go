@@ -24,11 +24,11 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/security"
-	"github.com/apache/yunikorn-core/pkg/scheduler/placement/types"
-	siCommon "github.com/apache/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/security"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/placement/types"
+	siCommon "github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
 )
 
 // basic test to check if no rules leave the manager unusable

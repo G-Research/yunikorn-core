@@ -19,17 +19,17 @@
 package events
 
 import (
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 type QueueEvents struct {
 	eventSystem events.EventSystem
 }
 
-func (q *QueueEvents) SendNewQueueEvent(queuePath string, managed bool) {
+func (q *QueueEvents) SendNewQueueEvent(queuePath string, managed bool, state string) {
 	if !q.eventSystem.IsEventTrackingEnabled() {
 		return
 	}
@@ -38,20 +38,20 @@ func (q *QueueEvents) SendNewQueueEvent(queuePath string, managed bool) {
 		detail = si.EventRecord_DETAILS_NONE
 	}
 	event := events.CreateQueueEventRecord(queuePath, common.Empty, common.Empty, si.EventRecord_ADD,
-		detail, nil)
+		detail, nil, state)
 	q.eventSystem.AddEvent(event)
 }
 
-func (q *QueueEvents) SendNewApplicationEvent(queuePath, appID string) {
+func (q *QueueEvents) SendNewApplicationEvent(queuePath, appID string, state string) {
 	if !q.eventSystem.IsEventTrackingEnabled() {
 		return
 	}
 	event := events.CreateQueueEventRecord(queuePath, common.Empty, appID, si.EventRecord_ADD,
-		si.EventRecord_QUEUE_APP, nil)
+		si.EventRecord_QUEUE_APP, nil, state)
 	q.eventSystem.AddEvent(event)
 }
 
-func (q *QueueEvents) SendRemoveQueueEvent(queuePath string, managed bool) {
+func (q *QueueEvents) SendRemoveQueueEvent(queuePath string, managed bool, state string) {
 	if !q.eventSystem.IsEventTrackingEnabled() {
 		return
 	}
@@ -60,38 +60,38 @@ func (q *QueueEvents) SendRemoveQueueEvent(queuePath string, managed bool) {
 		detail = si.EventRecord_DETAILS_NONE
 	}
 	event := events.CreateQueueEventRecord(queuePath, common.Empty, common.Empty, si.EventRecord_REMOVE,
-		detail, nil)
+		detail, nil, state)
 	q.eventSystem.AddEvent(event)
 }
 
-func (q *QueueEvents) SendRemoveApplicationEvent(queuePath, appID string) {
+func (q *QueueEvents) SendRemoveApplicationEvent(queuePath, appID string, state string) {
 	if !q.eventSystem.IsEventTrackingEnabled() {
 		return
 	}
 	event := events.CreateQueueEventRecord(queuePath, common.Empty, appID, si.EventRecord_REMOVE,
-		si.EventRecord_QUEUE_APP, nil)
+		si.EventRecord_QUEUE_APP, nil, state)
 	q.eventSystem.AddEvent(event)
 }
 
-func (q *QueueEvents) SendMaxResourceChangedEvent(queuePath string, maxResource *resources.Resource) {
+func (q *QueueEvents) SendMaxResourceChangedEvent(queuePath string, maxResource *resources.Resource, state string) {
 	if !q.eventSystem.IsEventTrackingEnabled() {
 		return
 	}
 	event := events.CreateQueueEventRecord(queuePath, common.Empty, common.Empty, si.EventRecord_SET,
-		si.EventRecord_QUEUE_MAX, maxResource)
+		si.EventRecord_QUEUE_MAX, maxResource, state)
 	q.eventSystem.AddEvent(event)
 }
 
-func (q *QueueEvents) SendGuaranteedResourceChangedEvent(queuePath string, guaranteed *resources.Resource) {
+func (q *QueueEvents) SendGuaranteedResourceChangedEvent(queuePath string, guaranteed *resources.Resource, state string) {
 	if !q.eventSystem.IsEventTrackingEnabled() {
 		return
 	}
 	event := events.CreateQueueEventRecord(queuePath, common.Empty, common.Empty, si.EventRecord_SET,
-		si.EventRecord_QUEUE_GUARANTEED, guaranteed)
+		si.EventRecord_QUEUE_GUARANTEED, guaranteed, state)
 	q.eventSystem.AddEvent(event)
 }
 
-func (q *QueueEvents) SendTypeChangedEvent(queuePath string, isLeaf bool) {
+func (q *QueueEvents) SendTypeChangedEvent(queuePath string, isLeaf bool, state string) {
 	if !q.eventSystem.IsEventTrackingEnabled() {
 		return
 	}
@@ -100,7 +100,7 @@ func (q *QueueEvents) SendTypeChangedEvent(queuePath string, isLeaf bool) {
 		message = "leaf queue: true"
 	}
 	event := events.CreateQueueEventRecord(queuePath, message, common.Empty, si.EventRecord_SET,
-		si.EventRecord_QUEUE_TYPE, nil)
+		si.EventRecord_QUEUE_TYPE, nil, state)
 	q.eventSystem.AddEvent(event)
 }
 

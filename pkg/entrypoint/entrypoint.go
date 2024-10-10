@@ -21,14 +21,14 @@ package entrypoint
 import (
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-core/pkg/handler"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/metrics"
-	"github.com/apache/yunikorn-core/pkg/metrics/history"
-	"github.com/apache/yunikorn-core/pkg/rmproxy"
-	"github.com/apache/yunikorn-core/pkg/scheduler"
-	"github.com/apache/yunikorn-core/pkg/webservice"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-core/pkg/handler"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/metrics"
+	"github.com/G-Research/yunikorn-core/pkg/metrics/history"
+	"github.com/G-Research/yunikorn-core/pkg/rmproxy"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler"
+	"github.com/G-Research/yunikorn-core/pkg/webservice"
 )
 
 // options used to control how services are started

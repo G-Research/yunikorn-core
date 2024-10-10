@@ -19,8 +19,8 @@
 package plugins
 
 import (
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/api"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/api"
 )
 
 type SchedulerPlugins struct {

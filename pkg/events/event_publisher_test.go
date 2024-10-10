@@ -24,10 +24,10 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/mock"
-	"github.com/apache/yunikorn-core/pkg/plugins"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/mock"
+	"github.com/G-Research/yunikorn-core/pkg/plugins"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 // creating a Publisher with nil store should still provide a non-nil object

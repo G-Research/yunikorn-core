@@ -21,7 +21,7 @@ package policies
 import (
 	"fmt"
 
-	"github.com/apache/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/log"
 )
 
 // Sort type for queues & apps.

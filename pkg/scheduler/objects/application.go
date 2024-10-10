@@ -19,7 +19,9 @@
 package objects
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -30,20 +32,21 @@ import (
 	"github.com/looplab/fsm"
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/common/security"
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-core/pkg/handler"
-	"github.com/apache/yunikorn-core/pkg/locking"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/metrics"
-	"github.com/apache/yunikorn-core/pkg/rmproxy/rmevent"
-	schedEvt "github.com/apache/yunikorn-core/pkg/scheduler/objects/events"
-	"github.com/apache/yunikorn-core/pkg/scheduler/ugm"
-	siCommon "github.com/apache/yunikorn-scheduler-interface/lib/go/common"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/common/security"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-core/pkg/handler"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/metrics"
+	"github.com/G-Research/yunikorn-core/pkg/rmproxy/rmevent"
+	schedEvt "github.com/G-Research/yunikorn-core/pkg/scheduler/objects/events"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/ugm"
+	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
+	siCommon "github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 var (
@@ -121,6 +124,8 @@ type Application struct {
 	appEvents             *schedEvt.ApplicationEvents
 	sendStateChangeEvents bool // whether to send state-change events or not (simplifies testing)
 
+	snapshot bytes.Buffer
+
 	locking.RWMutex
 }
 
@@ -145,6 +150,53 @@ func (sa *Application) GetApplicationSummary(rmID string) *ApplicationSummary {
 		PlaceholderResource: placeHolderUsage,
 	}
 	return appSummary
+}
+
+func (sa *Application) daoSnapshot() string {
+	if err := json.NewEncoder(&sa.snapshot).Encode(sa.dao()); err != nil {
+		// TODO: log error
+		return ""
+	}
+
+	val := sa.snapshot.String()
+	sa.snapshot.Reset()
+	return val
+}
+
+func (app *Application) dao() *dao.ApplicationDAOInfo {
+	if app == nil {
+		return &dao.ApplicationDAOInfo{}
+	}
+
+	resourceUsage := app.usedResource.Clone()
+	preemptedUsage := app.preemptedResource.Clone()
+	placeHolderUsage := app.placeholderResource.Clone()
+
+	return &dao.ApplicationDAOInfo{
+		ApplicationID:       app.ApplicationID,
+		UsedResource:        app.allocatedResource.Clone().DAOMap(),
+		MaxUsedResource:     app.maxAllocatedResource.Clone().DAOMap(),
+		PendingResource:     app.pending.Clone().DAOMap(),
+		Partition:           common.GetPartitionNameWithoutClusterID(app.Partition),
+		QueueName:           app.queuePath,
+		SubmissionTime:      app.SubmissionTime.UnixNano(),
+		FinishedTime:        common.ZeroTimeInUnixNano(app.finishedTime),
+		Requests:            getAllocationAsksDAO(app.getAllRequestsInternal()),
+		Allocations:         getAllocationsDAO(app.getAllAllocations()),
+		State:               app.CurrentState(),
+		User:                app.user.User,
+		Groups:              app.user.Groups,
+		RejectedMessage:     app.rejectedMessage,
+		PlaceholderData:     getPlaceholdersDAO(app.getAllPlaceholderData()),
+		StateLog:            getStatesDAO(app.stateLog),
+		HasReserved:         len(app.reservations) > 0,
+		Reservations:        app.getReservations(),
+		MaxRequestPriority:  app.askMaxPriority,
+		StartTime:           app.startTime.UnixMilli(),
+		ResourceUsage:       resourceUsage,
+		PreemptedResource:   preemptedUsage,
+		PlaceholderResource: placeHolderUsage,
+	}
 }
 
 func NewApplication(siApp *si.AddApplicationRequest, ugi security.UserGroup, eventHandler handler.EventHandler, rmID string) *Application {
@@ -189,7 +241,7 @@ func NewApplication(siApp *si.AddApplicationRequest, ugi security.UserGroup, eve
 	app.rmEventHandler = eventHandler
 	app.rmID = rmID
 	app.appEvents = schedEvt.NewApplicationEvents(events.GetEventSystem())
-	app.appEvents.SendNewApplicationEvent(app.ApplicationID)
+	app.appEvents.SendNewApplicationEvent(app.ApplicationID, app.daoSnapshot())
 	return app
 }
 
@@ -468,6 +520,10 @@ func (sa *Application) timeoutPlaceholderProcessing() {
 func (sa *Application) GetReservations() []string {
 	sa.RLock()
 	defer sa.RUnlock()
+	return sa.getReservations()
+}
+
+func (sa *Application) getReservations() []string {
 	keys := make([]string, 0)
 	for key := range sa.reservations {
 		keys = append(keys, key)
@@ -554,7 +610,7 @@ func (sa *Application) removeAsksInternal(allocKey string, detail si.EventRecord
 		deltaPendingResource = sa.pending
 		sa.pending = resources.NewResource()
 		for _, ask := range sa.requests {
-			sa.appEvents.SendRemoveAskEvent(sa.ApplicationID, ask.allocationKey, ask.GetAllocatedResource(), detail)
+			sa.appEvents.SendRemoveAskEvent(sa.ApplicationID, ask.allocationKey, ask.GetAllocatedResource(), detail, sa.daoSnapshot())
 		}
 		sa.requests = make(map[string]*Allocation)
 		sa.sortedRequests = sortedRequests{}
@@ -584,7 +640,7 @@ func (sa *Application) removeAsksInternal(allocKey string, detail si.EventRecord
 			}
 			delete(sa.requests, allocKey)
 			sa.sortedRequests.remove(ask)
-			sa.appEvents.SendRemoveAskEvent(sa.ApplicationID, ask.allocationKey, ask.GetAllocatedResource(), detail)
+			sa.appEvents.SendRemoveAskEvent(sa.ApplicationID, ask.allocationKey, ask.GetAllocatedResource(), detail, sa.daoSnapshot())
 			if priority := ask.GetPriority(); priority >= sa.askMaxPriority {
 				sa.updateAskMaxPriority()
 			}
@@ -658,7 +714,7 @@ func (sa *Application) AddAllocationAsk(ask *Allocation) error {
 		zap.Bool("placeholder", ask.IsPlaceholder()),
 		zap.Stringer("pendingDelta", delta))
 	sa.sortedRequests.insert(ask)
-	sa.appEvents.SendNewAskEvent(sa.ApplicationID, ask.allocationKey, ask.GetAllocatedResource())
+	sa.appEvents.SendNewAskEvent(sa.ApplicationID, ask.allocationKey, ask.GetAllocatedResource(), sa.daoSnapshot())
 
 	return nil
 }
@@ -1212,7 +1268,7 @@ func (sa *Application) tryPlaceholderAllocate(nodeIterator func() NodeIterator, 
 				// release the placeholder and tell the RM
 				ph.SetReleased(true)
 				sa.notifyRMAllocationReleased([]*Allocation{ph}, si.TerminationType_TIMEOUT, "cancel placeholder: resource incompatible")
-				sa.appEvents.SendPlaceholderLargerEvent(ph.taskGroupName, sa.ApplicationID, ph.allocationKey, request.GetAllocatedResource(), ph.GetAllocatedResource())
+				sa.appEvents.SendPlaceholderLargerEvent(ph.taskGroupName, sa.ApplicationID, ph.allocationKey, request.GetAllocatedResource(), ph.GetAllocatedResource(), sa.daoSnapshot())
 				continue
 			}
 			// placeholder is the same or larger continue processing and difference is handled when the placeholder
@@ -1674,6 +1730,14 @@ func (sa *Application) GetAllAllocations() []*Allocation {
 	return allocations
 }
 
+func (sa *Application) getAllAllocations() []*Allocation {
+	var allocations []*Allocation
+	for _, alloc := range sa.allocations {
+		allocations = append(allocations, alloc)
+	}
+	return allocations
+}
+
 // get a copy of all placeholder allocations of the application
 // No locking must be called while holding the lock
 func (sa *Application) getPlaceholderAllocations() []*Allocation {
@@ -1756,7 +1820,7 @@ func (sa *Application) addAllocationInternal(allocType AllocationResultType, all
 		sa.allocatedResource = resources.Add(sa.allocatedResource, alloc.GetAllocatedResource())
 		sa.maxAllocatedResource = resources.ComponentWiseMax(sa.allocatedResource, sa.maxAllocatedResource)
 	}
-	sa.appEvents.SendNewAllocationEvent(sa.ApplicationID, alloc.allocationKey, alloc.GetAllocatedResource())
+	sa.appEvents.SendNewAllocationEvent(sa.ApplicationID, alloc.allocationKey, alloc.GetAllocatedResource(), sa.daoSnapshot())
 	sa.allocations[alloc.GetAllocationKey()] = alloc
 }
 
@@ -1913,7 +1977,7 @@ func (sa *Application) removeAllocationInternal(allocationKey string, releaseTyp
 		}
 	}
 	delete(sa.allocations, allocationKey)
-	sa.appEvents.SendRemoveAllocationEvent(sa.ApplicationID, alloc.allocationKey, alloc.GetAllocatedResource(), releaseType)
+	sa.appEvents.SendRemoveAllocationEvent(sa.ApplicationID, alloc.allocationKey, alloc.GetAllocatedResource(), releaseType, sa.daoSnapshot())
 	return alloc
 }
 
@@ -1944,7 +2008,7 @@ func (sa *Application) RemoveAllAllocations() []*Allocation {
 		allocationsToRelease = append(allocationsToRelease, alloc)
 		// Aggregate the resources used by this alloc to the application's user resource tracker
 		sa.trackCompletedResource(alloc)
-		sa.appEvents.SendRemoveAllocationEvent(sa.ApplicationID, alloc.allocationKey, alloc.GetAllocatedResource(), si.TerminationType_STOPPED_BY_RM)
+		sa.appEvents.SendRemoveAllocationEvent(sa.ApplicationID, alloc.allocationKey, alloc.GetAllocatedResource(), si.TerminationType_STOPPED_BY_RM, sa.daoSnapshot())
 	}
 
 	// if an app doesn't have any allocations and the user doesn't have other applications,
@@ -2092,6 +2156,14 @@ func (sa *Application) GetAllPlaceholderData() []*PlaceholderData {
 	return placeholders
 }
 
+func (sa *Application) getAllPlaceholderData() []*PlaceholderData {
+	var placeholders []*PlaceholderData
+	for _, taskGroup := range sa.placeholderData {
+		placeholders = append(placeholders, taskGroup)
+	}
+	return placeholders
+}
+
 func (sa *Application) GetAskMaxPriority() int32 {
 	sa.RLock()
 	defer sa.RUnlock()
@@ -2165,12 +2237,12 @@ func (sa *Application) updateRunnableStatus(runnableInQueue, runnableByUserLimit
 			log.Log(log.SchedApplication).Info("Application is now runnable in queue",
 				zap.String("appID", sa.ApplicationID),
 				zap.String("queue", sa.queuePath))
-			sa.appEvents.SendAppRunnableInQueueEvent(sa.ApplicationID)
+			sa.appEvents.SendAppRunnableInQueueEvent(sa.ApplicationID, sa.daoSnapshot())
 		} else {
 			log.Log(log.SchedApplication).Info("Maximum number of running applications reached the queue limit",
 				zap.String("appID", sa.ApplicationID),
 				zap.String("queue", sa.queuePath))
-			sa.appEvents.SendAppNotRunnableInQueueEvent(sa.ApplicationID)
+			sa.appEvents.SendAppNotRunnableInQueueEvent(sa.ApplicationID, sa.daoSnapshot())
 		}
 	}
 	sa.runnableInQueue = runnableInQueue
@@ -2182,14 +2254,14 @@ func (sa *Application) updateRunnableStatus(runnableInQueue, runnableByUserLimit
 				zap.String("queue", sa.queuePath),
 				zap.String("user", sa.user.User),
 				zap.Strings("groups", sa.user.Groups))
-			sa.appEvents.SendAppRunnableQuotaEvent(sa.ApplicationID)
+			sa.appEvents.SendAppRunnableQuotaEvent(sa.ApplicationID, sa.daoSnapshot())
 		} else {
 			log.Log(log.SchedApplication).Info("Maximum number of running applications reached the user/group limit",
 				zap.String("appID", sa.ApplicationID),
 				zap.String("queue", sa.queuePath),
 				zap.String("user", sa.user.User),
 				zap.Strings("groups", sa.user.Groups))
-			sa.appEvents.SendAppNotRunnableQuotaEvent(sa.ApplicationID)
+			sa.appEvents.SendAppNotRunnableQuotaEvent(sa.ApplicationID, sa.daoSnapshot())
 		}
 	}
 	sa.runnableByUserLimit = runnableByUserLimit
@@ -2245,4 +2317,39 @@ func (sa *Application) getResourceFromTags(tag string) *resources.Resource {
 	}
 
 	return resource
+}
+
+func getPlaceholdersDAO(entries []*PlaceholderData) []*dao.PlaceholderDAOInfo {
+	phsDAO := make([]*dao.PlaceholderDAOInfo, 0, len(entries))
+	for _, entry := range entries {
+		phsDAO = append(phsDAO, entry.DAO())
+	}
+	return phsDAO
+}
+
+func (ph *PlaceholderData) DAO() *dao.PlaceholderDAOInfo {
+	phDAO := &dao.PlaceholderDAOInfo{
+		TaskGroupName: ph.TaskGroupName,
+		Count:         ph.Count,
+		MinResource:   ph.MinResource.DAOMap(),
+		Replaced:      ph.Replaced,
+		TimedOut:      ph.TimedOut,
+	}
+	return phDAO
+}
+
+func getStatesDAO(entries []*StateLogEntry) []*dao.StateDAOInfo {
+	statesDAO := make([]*dao.StateDAOInfo, 0, len(entries))
+	for _, entry := range entries {
+		statesDAO = append(statesDAO, entry.DAO())
+	}
+	return statesDAO
+}
+
+func (entry *StateLogEntry) DAO() *dao.StateDAOInfo {
+	state := &dao.StateDAOInfo{
+		Time:             entry.Time.UnixNano(),
+		ApplicationState: entry.ApplicationState,
+	}
+	return state
 }

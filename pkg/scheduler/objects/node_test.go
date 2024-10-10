@@ -24,13 +24,13 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	evtMock "github.com/apache/yunikorn-core/pkg/events/mock"
-	"github.com/apache/yunikorn-core/pkg/mock"
-	"github.com/apache/yunikorn-core/pkg/plugins"
-	schedEvt "github.com/apache/yunikorn-core/pkg/scheduler/objects/events"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/common"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	evtMock "github.com/G-Research/yunikorn-core/pkg/events/mock"
+	"github.com/G-Research/yunikorn-core/pkg/mock"
+	"github.com/G-Research/yunikorn-core/pkg/plugins"
+	schedEvt "github.com/G-Research/yunikorn-core/pkg/scheduler/objects/events"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const testNode = "testnode"

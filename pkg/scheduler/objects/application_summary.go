@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/log"
 )
 
 type ApplicationSummary struct {

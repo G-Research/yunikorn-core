@@ -23,13 +23,13 @@ import (
 	"net"
 	"time"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/entrypoint"
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-core/pkg/scheduler"
-	"github.com/apache/yunikorn-core/pkg/scheduler/objects"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/api"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/entrypoint"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/objects"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/api"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 type mockScheduler struct {

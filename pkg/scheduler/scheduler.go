@@ -24,12 +24,12 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/handler"
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/plugins"
-	"github.com/apache/yunikorn-core/pkg/rmproxy/rmevent"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/handler"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/plugins"
+	"github.com/G-Research/yunikorn-core/pkg/rmproxy/rmevent"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 // Main Scheduler service that starts the needed sub services

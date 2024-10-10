@@ -21,12 +21,12 @@ package events
 import (
 	"time"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 func createEventRecord(recordType si.EventRecord_Type, objectID, referenceID, message string,
-	changeType si.EventRecord_ChangeType, changeDetail si.EventRecord_ChangeDetail, resource *resources.Resource) *si.EventRecord {
+	changeType si.EventRecord_ChangeType, changeDetail si.EventRecord_ChangeDetail, resource *resources.Resource, state string) *si.EventRecord {
 	return &si.EventRecord{
 		Type:              recordType,
 		ObjectID:          objectID,
@@ -36,25 +36,26 @@ func createEventRecord(recordType si.EventRecord_Type, objectID, referenceID, me
 		Resource:          resource.ToProto(),
 		EventChangeDetail: changeDetail,
 		EventChangeType:   changeType,
+		State:             state,
 	}
 }
 
-func CreateRequestEventRecord(objectID, referenceID, message string, resource *resources.Resource) *si.EventRecord {
-	return createEventRecord(si.EventRecord_REQUEST, objectID, referenceID, message, si.EventRecord_NONE, si.EventRecord_DETAILS_NONE, resource)
+func CreateRequestEventRecord(objectID, referenceID, message string, resource *resources.Resource, state string) *si.EventRecord {
+	return createEventRecord(si.EventRecord_REQUEST, objectID, referenceID, message, si.EventRecord_NONE, si.EventRecord_DETAILS_NONE, resource, state)
 }
 
-func CreateAppEventRecord(objectID, message, referenceID string, changeType si.EventRecord_ChangeType, changeDetail si.EventRecord_ChangeDetail, resource *resources.Resource) *si.EventRecord {
-	return createEventRecord(si.EventRecord_APP, objectID, referenceID, message, changeType, changeDetail, resource)
+func CreateAppEventRecord(objectID, message, referenceID string, changeType si.EventRecord_ChangeType, changeDetail si.EventRecord_ChangeDetail, resource *resources.Resource, state string) *si.EventRecord {
+	return createEventRecord(si.EventRecord_APP, objectID, referenceID, message, changeType, changeDetail, resource, state)
 }
 
-func CreateNodeEventRecord(objectID, message, referenceID string, changeType si.EventRecord_ChangeType, changeDetail si.EventRecord_ChangeDetail, resource *resources.Resource) *si.EventRecord {
-	return createEventRecord(si.EventRecord_NODE, objectID, referenceID, message, changeType, changeDetail, resource)
+func CreateNodeEventRecord(objectID, message, referenceID string, changeType si.EventRecord_ChangeType, changeDetail si.EventRecord_ChangeDetail, resource *resources.Resource, state string) *si.EventRecord {
+	return createEventRecord(si.EventRecord_NODE, objectID, referenceID, message, changeType, changeDetail, resource, state)
 }
 
-func CreateQueueEventRecord(objectID, message, referenceID string, changeType si.EventRecord_ChangeType, changeDetail si.EventRecord_ChangeDetail, resource *resources.Resource) *si.EventRecord {
-	return createEventRecord(si.EventRecord_QUEUE, objectID, referenceID, message, changeType, changeDetail, resource)
+func CreateQueueEventRecord(objectID, message, referenceID string, changeType si.EventRecord_ChangeType, changeDetail si.EventRecord_ChangeDetail, resource *resources.Resource, state string) *si.EventRecord {
+	return createEventRecord(si.EventRecord_QUEUE, objectID, referenceID, message, changeType, changeDetail, resource, state)
 }
 
 func CreateUserGroupEventRecord(objectID, message, referenceID string, changeType si.EventRecord_ChangeType, changeDetail si.EventRecord_ChangeDetail, resource *resources.Resource) *si.EventRecord {
-	return createEventRecord(si.EventRecord_USERGROUP, objectID, referenceID, message, changeType, changeDetail, resource)
+	return createEventRecord(si.EventRecord_USERGROUP, objectID, referenceID, message, changeType, changeDetail, resource, "")
 }

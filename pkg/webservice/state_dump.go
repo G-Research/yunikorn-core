@@ -25,10 +25,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-core/pkg/locking"
-	yunikornLog "github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/webservice/dao"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-core/pkg/locking"
+	yunikornLog "github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
 )
 
 const (

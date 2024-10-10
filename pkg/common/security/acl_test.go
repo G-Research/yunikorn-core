@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/apache/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common"
 )
 
 func IsSameACL(got, expected ACL) error {

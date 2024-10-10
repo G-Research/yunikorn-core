@@ -36,20 +36,20 @@ import (
 	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/configs"
-	"github.com/apache/yunikorn-core/pkg/common/resources"
-	"github.com/apache/yunikorn-core/pkg/common/security"
-	"github.com/apache/yunikorn-core/pkg/events"
-	"github.com/apache/yunikorn-core/pkg/metrics/history"
-	"github.com/apache/yunikorn-core/pkg/scheduler"
-	"github.com/apache/yunikorn-core/pkg/scheduler/objects"
-	"github.com/apache/yunikorn-core/pkg/scheduler/placement/types"
-	"github.com/apache/yunikorn-core/pkg/scheduler/policies"
-	"github.com/apache/yunikorn-core/pkg/scheduler/ugm"
-	"github.com/apache/yunikorn-core/pkg/webservice/dao"
-	siCommon "github.com/apache/yunikorn-scheduler-interface/lib/go/common"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/common/security"
+	"github.com/G-Research/yunikorn-core/pkg/events"
+	"github.com/G-Research/yunikorn-core/pkg/metrics/history"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/objects"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/placement/types"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/policies"
+	"github.com/G-Research/yunikorn-core/pkg/scheduler/ugm"
+	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
+	siCommon "github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const (
@@ -348,7 +348,7 @@ func TestGetStackInfo(t *testing.T) {
 func assertIsStackInfo(t *testing.T, outputBytes []byte) {
 	assert.Assert(t, strings.Contains(string(outputBytes), "goroutine"), "Stack trace should be present in the response")
 	assert.Assert(t, strings.Contains(string(outputBytes), "test"), "Stack trace should be present in the response")
-	assert.Assert(t, strings.Contains(string(outputBytes), "github.com/apache/yunikorn-core/pkg/webservice.getStackInfo"), "Stack trace should be present in the response")
+	assert.Assert(t, strings.Contains(string(outputBytes), "github.com/G-Research/yunikorn-core/pkg/webservice.getStackInfo"), "Stack trace should be present in the response")
 }
 
 func TestValidateConf(t *testing.T) {

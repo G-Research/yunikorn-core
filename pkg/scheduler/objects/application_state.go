@@ -26,9 +26,9 @@ import (
 	"github.com/looplab/fsm"
 	"go.uber.org/zap"
 
-	"github.com/apache/yunikorn-core/pkg/log"
-	"github.com/apache/yunikorn-core/pkg/metrics"
-	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/G-Research/yunikorn-core/pkg/log"
+	"github.com/G-Research/yunikorn-core/pkg/metrics"
+	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
 
 const noTransition = "no transition"
@@ -164,7 +164,7 @@ func callbacks() fsm.Callbacks {
 				return
 			}
 			if app.sendStateChangeEvents {
-				app.appEvents.SendStateChangeEvent(app.ApplicationID, eventDetails, eventInfo)
+				app.appEvents.SendStateChangeEvent(app.ApplicationID, eventDetails, eventInfo, app.daoSnapshot())
 			}
 		},
 		"leave_state": func(_ context.Context, event *fsm.Event) {

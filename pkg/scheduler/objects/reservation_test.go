@@ -23,7 +23,7 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/apache/yunikorn-core/pkg/common/resources"
+	"github.com/G-Research/yunikorn-core/pkg/common/resources"
 )
 
 func TestNewReservation(t *testing.T) {

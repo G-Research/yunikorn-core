@@ -21,8 +21,8 @@ package ugm
 import (
 	"strings"
 
-	"github.com/apache/yunikorn-core/pkg/common"
-	"github.com/apache/yunikorn-core/pkg/common/configs"
+	"github.com/G-Research/yunikorn-core/pkg/common"
+	"github.com/G-Research/yunikorn-core/pkg/common/configs"
 )
 
 // getParentPath return the path of the parent queue and an empty string if this queue is
