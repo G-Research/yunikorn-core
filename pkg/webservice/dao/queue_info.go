@@ -25,6 +25,7 @@ type TemplateInfo struct {
 }
 
 type PartitionQueueDAOInfo struct {
+	ID                     string                  `json:"id"`        // no omitempty, id should not be empty
 	QueueName              string                  `json:"queuename"` // no omitempty, queue name should not be empty
 	Status                 string                  `json:"status,omitempty"`
 	Partition              string                  `json:"partition"` // no omitempty, queue name should not be empty

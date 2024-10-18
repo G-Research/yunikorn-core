@@ -41,6 +41,7 @@ import (
 	"github.com/G-Research/yunikorn-core/pkg/scheduler/ugm"
 	siCommon "github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
 	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/oklog/ulid/v2"
 )
 
 var (
@@ -2596,6 +2597,7 @@ func TestGetOutstandingRequests(t *testing.T) {
 
 	// Create an Application instance
 	app := &Application{
+		ID:            ulid.Make().String(),
 		ApplicationID: "app-1",
 		queuePath:     "default",
 	}
@@ -2658,6 +2660,7 @@ func TestGetOutstandingRequests_NoSchedulingAttempt(t *testing.T) {
 	allocationAsk2.SetSchedulingAttempted(true)
 	allocationAsk4.SetSchedulingAttempted(true)
 	app := &Application{
+		ID:            ulid.Make().String(),
 		ApplicationID: "app-1",
 		queuePath:     "default",
 	}
@@ -2697,6 +2700,7 @@ func TestGetOutstandingRequests_RequestTriggeredPreemptionHasRequiredNode(t *tes
 	allocationAsk3.SetRequiredNode("node-1") // hasn't triggered scaling, has required node --> not selected
 
 	app := &Application{
+		ID:            ulid.Make().String(),
 		ApplicationID: "app-1",
 		queuePath:     "default",
 	}
@@ -2729,6 +2733,7 @@ func TestGetOutstandingRequests_AskReplaceable(t *testing.T) {
 	allocationAsk2.taskGroupName = "testgroup"
 
 	app := &Application{
+		ID:            ulid.Make().String(),
 		ApplicationID: "app-1",
 		queuePath:     "default",
 	}

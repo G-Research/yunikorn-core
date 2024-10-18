@@ -27,6 +27,7 @@ type ApplicationsDAOInfo struct {
 }
 
 type ApplicationDAOInfo struct {
+	ID                  string                     `json:"id"`            // no omitempty, id should not be empty
 	ApplicationID       string                     `json:"applicationID"` // no omitempty, application id should not be empty
 	UsedResource        map[string]int64           `json:"usedResource,omitempty"`
 	MaxUsedResource     map[string]int64           `json:"maxUsedResource,omitempty"`

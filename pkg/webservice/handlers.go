@@ -324,6 +324,7 @@ func getApplicationDAO(app *objects.Application, summary *objects.ApplicationSum
 	}
 
 	return &dao.ApplicationDAOInfo{
+		ID:                  app.ID,
 		ApplicationID:       app.ApplicationID,
 		UsedResource:        app.GetAllocatedResource().DAOMap(),
 		MaxUsedResource:     app.GetMaxAllocatedResource().DAOMap(),
@@ -396,6 +397,7 @@ func getAllocationAsksDAO(asks []*objects.Allocation) []*dao.AllocationAskDAOInf
 
 func getNodeDAO(node *objects.Node) *dao.NodeDAOInfo {
 	return &dao.NodeDAOInfo{
+		ID:                 node.ID,
 		NodeID:             node.NodeID,
 		HostName:           node.Hostname,
 		RackName:           node.Rackname,

@@ -24,6 +24,7 @@ type NodesDAOInfo struct {
 }
 
 type NodeDAOInfo struct {
+	ID                 string                      `json:"id"`     // no omitempty, id should not be empty
 	NodeID             string                      `json:"nodeID"` // no omitempty, node id should not be empty
 	HostName           string                      `json:"hostName,omitempty"`
 	RackName           string                      `json:"rackName,omitempty"`

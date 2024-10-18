@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/looplab/fsm"
+	"github.com/oklog/ulid/v2"
 	"go.uber.org/zap"
 
 	"github.com/G-Research/yunikorn-core/pkg/common"
@@ -52,6 +53,7 @@ var (
 
 // Queue structure inside Scheduler
 type Queue struct {
+	ID        string // A formatted ULID
 	QueuePath string // Fully qualified path for the queue
 	Name      string // Queue name as in the config etc.
 
@@ -109,6 +111,7 @@ func (sq *Queue) daoSnapshot() string {
 // newBlankQueue creates a new empty queue objects with all values initialised.
 func newBlankQueue() *Queue {
 	return &Queue{
+		ID:                     ulid.Make().String(),
 		children:               make(map[string]*Queue),
 		childPriorities:        make(map[string]int32),
 		applications:           make(map[string]*Application),
@@ -696,6 +699,7 @@ func (sq *Queue) GetPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	for _, child := range children {
 		queueInfo.ChildNames = append(queueInfo.ChildNames, child.QueuePath)
 	}
+	queueInfo.ID = sq.ID
 	queueInfo.QueueName = sq.QueuePath
 	queueInfo.Status = sq.stateMachine.Current()
 	queueInfo.PendingResource = sq.pending.DAOMap()
@@ -742,6 +746,7 @@ func (sq *Queue) getPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	for _, child := range children {
 		queueInfo.ChildNames = append(queueInfo.ChildNames, child.QueuePath)
 	}
+	queueInfo.ID = sq.ID
 	queueInfo.QueueName = sq.QueuePath
 	queueInfo.Status = sq.stateMachine.Current()
 	queueInfo.PendingResource = sq.pending.DAOMap()
