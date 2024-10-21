@@ -2711,7 +2711,6 @@ func TestQueueRunningAppsForSingleAllocationApp(t *testing.T) {
 
 func isNewApplicationEvent(t *testing.T, app *Application, record *si.EventRecord) {
 	assert.Equal(t, si.EventRecord_APP, record.Type, "incorrect event type, expect app")
-	assert.Equal(t, app.ID, record.ObjectID, "incorrect object ID, expected ID")
 	assert.Equal(t, app.ApplicationID, record.ObjectID, "incorrect object ID, expected application ID")
 	assert.Equal(t, si.EventRecord_ADD, record.EventChangeType, "incorrect change type, expected add")
 	assert.Equal(t, si.EventRecord_APP_NEW, record.EventChangeDetail, "incorrect change detail, expected none")
