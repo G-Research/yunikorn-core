@@ -47,7 +47,7 @@ TOOLS_DIR=tools
 GO111MODULE := on
 export GO111MODULE
 
-REPO=github.com/apache/yunikorn-core/pkg
+REPO=github.com/G-Research/yunikorn-core/pkg
 # when using the -race option CGO_ENABLED is set to 1 (automatically)
 # it breaks cross compilation.
 RACE=-race
@@ -161,7 +161,7 @@ endif
 # Check that we use pseudo versions in master
 .PHONY: pseudo
 BRANCH := $(shell git branch --show-current)
-SI_REF := $(shell "$(GO)" list -m -f '{{ .Version }}' github.com/apache/yunikorn-scheduler-interface)
+SI_REF := $(shell "$(GO)" list -m -f '{{ .Version }}' github.com/G-Research/yunikorn-scheduler-interface)
 SI_MATCH := $(shell expr "${SI_REF}" : "v0.0.0-")
 pseudo:
 	@echo "pseudo version check"
