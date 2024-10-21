@@ -1368,9 +1368,9 @@ func TestGetPartitionNodes(t *testing.T) {
 		}
 
 		if node.NodeID == node1ID {
-			assertNodeInfo(t, node, node1ID, "alloc-1", attributesOfnode1, map[string]int64{"memory": 50, "vcore": 30})
+			assertNodeInfo(t, node, node1ID, partitionNameWithoutClusterID, "alloc-1", attributesOfnode1, map[string]int64{"memory": 50, "vcore": 30})
 		} else {
-			assertNodeInfo(t, node, node2ID, "alloc-2", attributesOfnode2, map[string]int64{"memory": 30, "vcore": 50})
+			assertNodeInfo(t, node, node2ID, partitionNameWithoutClusterID, "alloc-2", attributesOfnode2, map[string]int64{"memory": 30, "vcore": 50})
 		}
 	}
 
@@ -1442,7 +1442,7 @@ func TestGetPartitionNode(t *testing.T) {
 	var nodeInfo dao.NodeDAOInfo
 	err = json.Unmarshal(resp.outputBytes, &nodeInfo)
 	assert.NilError(t, err, unmarshalError)
-	assertNodeInfo(t, &nodeInfo, node1ID, "alloc-1", attributesOfnode1, map[string]int64{"memory": 50, "vcore": 30})
+	assertNodeInfo(t, &nodeInfo, node1ID, "default", "alloc-1", attributesOfnode1, map[string]int64{"memory": 50, "vcore": 30})
 	assert.Equal(t, 2, len(nodeInfo.ForeignAllocations))
 	if nodeInfo.ForeignAllocations[0].AllocationKey == "foreign-1" {
 		assertForeignAllocation(t, "foreign-1", "0", node1ID, resAlloc1, true, nodeInfo.ForeignAllocations[0])
@@ -1474,9 +1474,10 @@ func TestGetPartitionNode(t *testing.T) {
 	assertPartitionNotExists(t, resp)
 }
 
-func assertNodeInfo(t *testing.T, node *dao.NodeDAOInfo, expectedID string, expectedAllocationKey string, expectedAttibute map[string]string, expectedUtilized map[string]int64) {
+func assertNodeInfo(t *testing.T, node *dao.NodeDAOInfo, expectedID string, expectedPartition string, expectedAllocationKey string, expectedAttibute map[string]string, expectedUtilized map[string]int64) {
 	assert.Assert(t, node.ID != "")
 	assert.Equal(t, expectedID, node.NodeID)
+	assert.Equal(t, expectedPartition, node.Partition)
 	assert.Equal(t, expectedAllocationKey, node.Allocations[0].AllocationKey)
 	assert.DeepEqual(t, expectedAttibute, node.Attributes)
 	assert.DeepEqual(t, expectedUtilized, node.Utilized)

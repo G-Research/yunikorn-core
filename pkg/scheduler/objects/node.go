@@ -75,6 +75,7 @@ func (node *Node) dao() *dao.NodeDAOInfo {
 		NodeID:             node.NodeID,
 		HostName:           node.Hostname,
 		RackName:           node.Rackname,
+		Partition:          node.Partition,
 		Attributes:         node.GetAttributes(),
 		Capacity:           node.totalResource.Clone().DAOMap(),
 		Occupied:           node.occupiedResource.Clone().DAOMap(),
