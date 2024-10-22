@@ -42,6 +42,8 @@ const (
 	UnknownInstanceType = "UNKNOWN"
 )
 
+var nodeSnapshotLock locking.RWMutex
+
 type Node struct {
 	// Fields for fast access These fields are considered read only.
 	// Values should only be set when creating a new node and never changed.
@@ -91,6 +93,9 @@ func (node *Node) dao() *dao.NodeDAOInfo {
 }
 
 func (node *Node) daoSnapshot() string {
+	nodeSnapshotLock.Lock()
+	defer nodeSnapshotLock.Unlock()
+
 	if err := json.NewEncoder(&node.snapshot).Encode(node.dao()); err != nil {
 		// TODO: handle error
 		return ""

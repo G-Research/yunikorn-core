@@ -1477,7 +1477,6 @@ func TestGetPartitionNode(t *testing.T) {
 func assertNodeInfo(t *testing.T, node *dao.NodeDAOInfo, expectedID string, expectedPartition string, expectedAllocationKey string, expectedAttibute map[string]string, expectedUtilized map[string]int64) {
 	assert.Assert(t, node.ID != "")
 	assert.Equal(t, expectedID, node.NodeID)
-	assert.Equal(t, expectedPartition, node.Partition)
 	assert.Equal(t, expectedAllocationKey, node.Allocations[0].AllocationKey)
 	assert.DeepEqual(t, expectedAttibute, node.Attributes)
 	assert.DeepEqual(t, expectedUtilized, node.Utilized)

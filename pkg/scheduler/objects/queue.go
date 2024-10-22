@@ -51,6 +51,8 @@ var (
 	maxPreemptionsPerQueue = 10 // maximum number of asks to attempt to preempt for in a single queue
 )
 
+var queueSnapshotLock locking.RWMutex
+
 // Queue structure inside Scheduler
 type Queue struct {
 	ID        string // A formatted ULID
@@ -99,6 +101,9 @@ type Queue struct {
 }
 
 func (sq *Queue) daoSnapshot() string {
+	queueSnapshotLock.Lock()
+	defer queueSnapshotLock.Unlock()
+
 	if err := json.NewEncoder(&sq.snapshot).Encode(sq.getPartitionQueueDAOInfo(false)); err != nil {
 		// TODO: log error
 		return ""

@@ -58,6 +58,7 @@ var (
 )
 var initAppLogOnce sync.Once
 var rateLimitedAppLog *log.RateLimitedLogger
+var appSnapshotLock locking.RWMutex
 
 const (
 	Soft string = "Soft"
@@ -155,6 +156,9 @@ func (sa *Application) GetApplicationSummary(rmID string) *ApplicationSummary {
 }
 
 func (sa *Application) daoSnapshot() string {
+	appSnapshotLock.Lock()
+	defer appSnapshotLock.Unlock()
+
 	if err := json.NewEncoder(&sa.snapshot).Encode(sa.dao()); err != nil {
 		// TODO: log error
 		return ""
