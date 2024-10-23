@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/looplab/fsm"
+	"github.com/oklog/ulid/v2"
 	"go.uber.org/zap"
 
 	"github.com/G-Research/yunikorn-core/pkg/common"
@@ -80,6 +81,7 @@ type StateLogEntry struct {
 }
 
 type Application struct {
+	ID             string            // a formatted ULID
 	ApplicationID  string            // application ID
 	Partition      string            // partition Name
 	SubmissionTime time.Time         // time application was submitted
@@ -124,7 +126,8 @@ type Application struct {
 	appEvents             *schedEvt.ApplicationEvents
 	sendStateChangeEvents bool // whether to send state-change events or not (simplifies testing)
 
-	snapshot bytes.Buffer
+	snapshot        bytes.Buffer
+	appSnapshotLock locking.RWMutex
 
 	locking.RWMutex
 }
@@ -153,6 +156,9 @@ func (sa *Application) GetApplicationSummary(rmID string) *ApplicationSummary {
 }
 
 func (sa *Application) daoSnapshot() string {
+	sa.appSnapshotLock.Lock()
+	defer sa.appSnapshotLock.Unlock()
+
 	if err := json.NewEncoder(&sa.snapshot).Encode(sa.dao()); err != nil {
 		// TODO: log error
 		return ""
@@ -173,6 +179,7 @@ func (app *Application) dao() *dao.ApplicationDAOInfo {
 	placeHolderUsage := app.placeholderResource.Clone()
 
 	return &dao.ApplicationDAOInfo{
+		ID:                  app.ID,
 		ApplicationID:       app.ApplicationID,
 		UsedResource:        app.allocatedResource.Clone().DAOMap(),
 		MaxUsedResource:     app.maxAllocatedResource.Clone().DAOMap(),
@@ -201,6 +208,7 @@ func (app *Application) dao() *dao.ApplicationDAOInfo {
 
 func NewApplication(siApp *si.AddApplicationRequest, ugi security.UserGroup, eventHandler handler.EventHandler, rmID string) *Application {
 	app := &Application{
+		ID:                    ulid.Make().String(),
 		ApplicationID:         siApp.ApplicationID,
 		Partition:             siApp.PartitionName,
 		SubmissionTime:        time.Now(),
@@ -249,8 +257,8 @@ func (sa *Application) String() string {
 	if sa == nil {
 		return "application is nil"
 	}
-	return fmt.Sprintf("applicationID: %s, Partition: %s, SubmissionTime: %x, State: %s",
-		sa.ApplicationID, sa.Partition, sa.SubmissionTime, sa.stateMachine.Current())
+	return fmt.Sprintf("applicationID: %s, Partition: %s, SubmissionTime: %x, State: %s, ID: %s",
+		sa.ApplicationID, sa.Partition, sa.SubmissionTime, sa.stateMachine.Current(), sa.ID)
 }
 
 func (sa *Application) SetState(state string) {

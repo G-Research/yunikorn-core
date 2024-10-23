@@ -35,6 +35,7 @@ import (
 	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
 	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
 	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
+	"github.com/oklog/ulid/v2"
 )
 
 const (
@@ -44,6 +45,7 @@ const (
 type Node struct {
 	// Fields for fast access These fields are considered read only.
 	// Values should only be set when creating a new node and never changed.
+	ID        string
 	NodeID    string
 	Hostname  string
 	Rackname  string
@@ -62,16 +64,19 @@ type Node struct {
 	listeners    []NodeListener          // a list of node listeners
 	nodeEvents   *schedEvt.NodeEvents
 
-	snapshot bytes.Buffer
+	snapshot         bytes.Buffer
+	nodeSnapshotLock locking.RWMutex
 
 	locking.RWMutex
 }
 
 func (node *Node) dao() *dao.NodeDAOInfo {
 	return &dao.NodeDAOInfo{
+		ID:                 node.ID,
 		NodeID:             node.NodeID,
 		HostName:           node.Hostname,
 		RackName:           node.Rackname,
+		Partition:          node.Partition,
 		Attributes:         node.GetAttributes(),
 		Capacity:           node.totalResource.Clone().DAOMap(),
 		Occupied:           node.occupiedResource.Clone().DAOMap(),
@@ -87,6 +92,9 @@ func (node *Node) dao() *dao.NodeDAOInfo {
 }
 
 func (node *Node) daoSnapshot() string {
+	node.nodeSnapshotLock.Lock()
+	defer node.nodeSnapshotLock.Unlock()
+
 	if err := json.NewEncoder(&node.snapshot).Encode(node.dao()); err != nil {
 		// TODO: handle error
 		return ""
@@ -103,6 +111,7 @@ func NewNode(proto *si.NodeInfo) *Node {
 	}
 
 	sn := &Node{
+		ID:                ulid.Make().String(),
 		NodeID:            proto.NodeID,
 		reservations:      make(map[string]*reservation),
 		totalResource:     resources.NewResourceFromProto(proto.SchedulableResource),
@@ -130,8 +139,8 @@ func (sn *Node) String() string {
 	if sn == nil {
 		return "node is nil"
 	}
-	return fmt.Sprintf("NodeID %s, Partition %s, Schedulable %t, Total %s, Allocated %s, #allocations %d",
-		sn.NodeID, sn.Partition, sn.schedulable, sn.totalResource, sn.allocatedResource, len(sn.allocations))
+	return fmt.Sprintf("NodeID %s, Partition %s, Schedulable %t, Total %s, Allocated %s, #allocations %d, ID %s",
+		sn.NodeID, sn.Partition, sn.schedulable, sn.totalResource, sn.allocatedResource, len(sn.allocations), sn.ID)
 }
 
 // Set the attributes and fast access fields.

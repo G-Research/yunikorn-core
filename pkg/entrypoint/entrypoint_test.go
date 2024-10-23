@@ -44,6 +44,7 @@ func TestCustomLoggingConfiguration(t *testing.T) {
 	defer cleanup()
 	// ensure that the "object" package initialization happens
 	app := objects.Application{}
+	assert.Equal(t, "", app.ID)
 	assert.Equal(t, "", app.ApplicationID)
 	testDataDir, err := getWritableTestDataDir()
 	assert.NilError(t, err, "failed to get the test data directory")

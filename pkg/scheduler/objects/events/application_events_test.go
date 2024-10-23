@@ -217,12 +217,12 @@ func TestSendNewApplicationEvent(t *testing.T) {
 func TestSendRemoveApplicationEvent(t *testing.T) {
 	eventSystem := mock.NewEventSystemDisabled()
 	appEvents := NewApplicationEvents(eventSystem)
-	appEvents.SendRemoveApplicationEvent(appID)
+	appEvents.SendRemoveApplicationEvent(appID, "")
 	assert.Equal(t, 0, len(eventSystem.Events), "unexpected event")
 
 	eventSystem = mock.NewEventSystem()
 	appEvents = NewApplicationEvents(eventSystem)
-	appEvents.SendRemoveApplicationEvent(appID)
+	appEvents.SendRemoveApplicationEvent(appID, "")
 	event := eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_APP, event.Type)
 	assert.Equal(t, si.EventRecord_REMOVE, event.EventChangeType)

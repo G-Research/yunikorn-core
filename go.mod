@@ -28,6 +28,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/looplab/fsm v1.0.1
+	github.com/oklog/ulid/v2 v2.1.0
 	github.com/prometheus/client_golang v1.18.0
 	github.com/prometheus/client_model v0.5.0
 	github.com/prometheus/common v0.45.0

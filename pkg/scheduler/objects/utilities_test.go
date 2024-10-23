@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/google/btree"
+	"github.com/oklog/ulid/v2"
 	"gotest.tools/v3/assert"
 
 	"github.com/G-Research/yunikorn-core/pkg/common"
@@ -171,6 +172,7 @@ func newNodeRes(nodeID string, total *resources.Resource) *Node {
 
 func newNodeInternal(nodeID string, total, occupied *resources.Resource) *Node {
 	sn := &Node{
+		ID:                ulid.Make().String(),
 		NodeID:            nodeID,
 		Hostname:          "",
 		Rackname:          "",

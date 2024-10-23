@@ -1173,6 +1173,7 @@ func TestGetPartitionQueuesHandler(t *testing.T) {
 }
 
 func assertPartitionQueueDaoInfo(t *testing.T, partitionQueueDAOInfo *dao.PartitionQueueDAOInfo, queueName string, partition string, maxResource map[string]int64, gResource map[string]int64, leaf bool, isManaged bool, parent string, templateInfo *dao.TemplateInfo) {
+	assert.Assert(t, partitionQueueDAOInfo.ID != "")
 	assert.Equal(t, partitionQueueDAOInfo.QueueName, queueName)
 	assert.Equal(t, partitionQueueDAOInfo.Status, objects.Active.String())
 	assert.Equal(t, partitionQueueDAOInfo.Partition, partition)
@@ -1210,6 +1211,7 @@ func TestGetPartitionQueueHandler(t *testing.T) {
 	getPartitionQueue(resp, req)
 	err = json.Unmarshal(resp.outputBytes, &partitionQueueDao1)
 	assert.NilError(t, err, unmarshalError)
+	assert.Assert(t, partitionQueueDao1.ID != "")
 	assert.Equal(t, partitionQueueDao1.QueueName, "root.a")
 	assert.Equal(t, len(partitionQueueDao1.Children), 0)
 	assert.Equal(t, len(partitionQueueDao1.ChildNames), 1)
@@ -1223,6 +1225,7 @@ func TestGetPartitionQueueHandler(t *testing.T) {
 	getPartitionQueue(resp, req)
 	err = json.Unmarshal(resp.outputBytes, &partitionQueueDao2)
 	assert.NilError(t, err, unmarshalError)
+	assert.Assert(t, partitionQueueDao2.ID != "")
 	assert.Equal(t, partitionQueueDao2.QueueName, "root.a")
 	assert.Equal(t, len(partitionQueueDao2.Children), 1)
 	assert.Equal(t, len(partitionQueueDao2.ChildNames), 1)
@@ -1365,9 +1368,9 @@ func TestGetPartitionNodes(t *testing.T) {
 		}
 
 		if node.NodeID == node1ID {
-			assertNodeInfo(t, node, node1ID, "alloc-1", attributesOfnode1, map[string]int64{"memory": 50, "vcore": 30})
+			assertNodeInfo(t, node, node1ID, partitionNameWithoutClusterID, "alloc-1", attributesOfnode1, map[string]int64{"memory": 50, "vcore": 30})
 		} else {
-			assertNodeInfo(t, node, node2ID, "alloc-2", attributesOfnode2, map[string]int64{"memory": 30, "vcore": 50})
+			assertNodeInfo(t, node, node2ID, partitionNameWithoutClusterID, "alloc-2", attributesOfnode2, map[string]int64{"memory": 30, "vcore": 50})
 		}
 	}
 
@@ -1439,7 +1442,7 @@ func TestGetPartitionNode(t *testing.T) {
 	var nodeInfo dao.NodeDAOInfo
 	err = json.Unmarshal(resp.outputBytes, &nodeInfo)
 	assert.NilError(t, err, unmarshalError)
-	assertNodeInfo(t, &nodeInfo, node1ID, "alloc-1", attributesOfnode1, map[string]int64{"memory": 50, "vcore": 30})
+	assertNodeInfo(t, &nodeInfo, node1ID, "default", "alloc-1", attributesOfnode1, map[string]int64{"memory": 50, "vcore": 30})
 	assert.Equal(t, 2, len(nodeInfo.ForeignAllocations))
 	if nodeInfo.ForeignAllocations[0].AllocationKey == "foreign-1" {
 		assertForeignAllocation(t, "foreign-1", "0", node1ID, resAlloc1, true, nodeInfo.ForeignAllocations[0])
@@ -1471,7 +1474,8 @@ func TestGetPartitionNode(t *testing.T) {
 	assertPartitionNotExists(t, resp)
 }
 
-func assertNodeInfo(t *testing.T, node *dao.NodeDAOInfo, expectedID string, expectedAllocationKey string, expectedAttibute map[string]string, expectedUtilized map[string]int64) {
+func assertNodeInfo(t *testing.T, node *dao.NodeDAOInfo, expectedID string, expectedPartition string, expectedAllocationKey string, expectedAttibute map[string]string, expectedUtilized map[string]int64) {
+	assert.Assert(t, node.ID != "")
 	assert.Equal(t, expectedID, node.NodeID)
 	assert.Equal(t, expectedAllocationKey, node.Allocations[0].AllocationKey)
 	assert.DeepEqual(t, expectedAttibute, node.Attributes)
@@ -1862,6 +1866,7 @@ func TestGetApplicationHandler(t *testing.T) {
 	getApplication(resp, req)
 	err = json.Unmarshal(resp.outputBytes, &appsDao)
 	assert.NilError(t, err, unmarshalError)
+	assert.Assert(t, appsDao.ID != "")
 	assert.Equal(t, appsDao.ApplicationID, "app-1")
 	assert.Equal(t, appsDao.Partition, "default")
 	assert.Equal(t, appsDao.QueueName, "root.default")

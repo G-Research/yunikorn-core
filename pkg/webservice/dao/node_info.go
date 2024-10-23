@@ -24,9 +24,11 @@ type NodesDAOInfo struct {
 }
 
 type NodeDAOInfo struct {
+	ID                 string                      `json:"id"`     // no omitempty, id should not be empty
 	NodeID             string                      `json:"nodeID"` // no omitempty, node id should not be empty
 	HostName           string                      `json:"hostName,omitempty"`
 	RackName           string                      `json:"rackName,omitempty"`
+	Partition          string                      `json:"partition"` // no omitempty, partition should not be empty
 	Attributes         map[string]string           `json:"attributes,omitempty"`
 	Capacity           map[string]int64            `json:"capacity,omitempty"`
 	Allocated          map[string]int64            `json:"allocated,omitempty"`
