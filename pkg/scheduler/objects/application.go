@@ -58,7 +58,6 @@ var (
 )
 var initAppLogOnce sync.Once
 var rateLimitedAppLog *log.RateLimitedLogger
-var appSnapshotLock locking.RWMutex
 
 const (
 	Soft string = "Soft"
@@ -127,7 +126,8 @@ type Application struct {
 	appEvents             *schedEvt.ApplicationEvents
 	sendStateChangeEvents bool // whether to send state-change events or not (simplifies testing)
 
-	snapshot bytes.Buffer
+	snapshot        bytes.Buffer
+	appSnapshotLock locking.RWMutex
 
 	locking.RWMutex
 }
@@ -156,8 +156,8 @@ func (sa *Application) GetApplicationSummary(rmID string) *ApplicationSummary {
 }
 
 func (sa *Application) daoSnapshot() string {
-	appSnapshotLock.Lock()
-	defer appSnapshotLock.Unlock()
+	sa.appSnapshotLock.Lock()
+	defer sa.appSnapshotLock.Unlock()
 
 	if err := json.NewEncoder(&sa.snapshot).Encode(sa.dao()); err != nil {
 		// TODO: log error
