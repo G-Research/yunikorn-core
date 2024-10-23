@@ -126,8 +126,8 @@ type Application struct {
 	appEvents             *schedEvt.ApplicationEvents
 	sendStateChangeEvents bool // whether to send state-change events or not (simplifies testing)
 
-	snapshot        bytes.Buffer
-	appSnapshotLock locking.RWMutex
+	snapshot     bytes.Buffer
+	snapshotLock locking.RWMutex
 
 	locking.RWMutex
 }
@@ -156,8 +156,8 @@ func (sa *Application) GetApplicationSummary(rmID string) *ApplicationSummary {
 }
 
 func (sa *Application) daoSnapshot() string {
-	sa.appSnapshotLock.Lock()
-	defer sa.appSnapshotLock.Unlock()
+	sa.snapshotLock.Lock()
+	defer sa.snapshotLock.Unlock()
 
 	if err := json.NewEncoder(&sa.snapshot).Encode(sa.dao()); err != nil {
 		// TODO: log error

@@ -64,8 +64,8 @@ type Node struct {
 	listeners    []NodeListener          // a list of node listeners
 	nodeEvents   *schedEvt.NodeEvents
 
-	snapshot         bytes.Buffer
-	nodeSnapshotLock locking.RWMutex
+	snapshot     bytes.Buffer
+	snapshotLock locking.RWMutex
 
 	locking.RWMutex
 }
@@ -92,8 +92,8 @@ func (node *Node) dao() *dao.NodeDAOInfo {
 }
 
 func (node *Node) daoSnapshot() string {
-	node.nodeSnapshotLock.Lock()
-	defer node.nodeSnapshotLock.Unlock()
+	node.snapshotLock.Lock()
+	defer node.snapshotLock.Unlock()
 
 	if err := json.NewEncoder(&node.snapshot).Encode(node.dao()); err != nil {
 		// TODO: handle error
