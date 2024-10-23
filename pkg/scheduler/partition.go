@@ -118,6 +118,8 @@ func (pc *PartitionContext) initialPartitionFromConfig(conf configs.PartitionCon
 	if pc.root, err = objects.NewConfiguredQueue(queueConf, nil); err != nil {
 		return err
 	}
+	pc.root.Partition = pc.Name
+
 	// recursively add the queues to the root
 	if err = pc.addQueue(queueConf.Queues, pc.root); err != nil {
 		return err
@@ -205,6 +207,7 @@ func (pc *PartitionContext) addQueue(conf []configs.QueueConfig, parent *objects
 			if err != nil {
 				return err
 			}
+			thisQueue.Partition = pc.Name
 		}
 	}
 	return nil

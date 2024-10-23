@@ -56,6 +56,7 @@ type Queue struct {
 	ID        string // A formatted ULID
 	QueuePath string // Fully qualified path for the queue
 	Name      string // Queue name as in the config etc.
+	Partition string // Partition in which this queue resides
 
 	// Private fields need protection
 	sortType            policies.SortPolicy       // How applications (leaf) or queues (parents) are sorted
@@ -93,15 +94,15 @@ type Queue struct {
 	template               *template.Template
 	queueEvents            *schedEvt.QueueEvents
 
-	snapshot          bytes.Buffer
-	queueSnapshotLock locking.RWMutex
+	snapshot     bytes.Buffer
+	snapshotLock locking.RWMutex
 
 	locking.RWMutex
 }
 
 func (sq *Queue) daoSnapshot() string {
-	sq.queueSnapshotLock.Lock()
-	defer sq.queueSnapshotLock.Unlock()
+	sq.snapshotLock.Lock()
+	defer sq.snapshotLock.Unlock()
 
 	if err := json.NewEncoder(&sq.snapshot).Encode(sq.getPartitionQueueDAOInfo(false)); err != nil {
 		// TODO: log error
@@ -156,6 +157,7 @@ func NewConfiguredQueue(conf configs.QueueConfig, parent *Queue) (*Queue, error)
 		sq.mergeProperties(parent.getProperties(), conf.Properties)
 		sq.UpdateQueueProperties()
 		sq.QueuePath = parent.QueuePath + configs.DOT + sq.Name
+		sq.Partition = parent.Partition
 		err := parent.addChildQueue(sq)
 		if err != nil {
 			return nil, errors.Join(errors.New("configured queue creation failed: "), err)
@@ -705,6 +707,7 @@ func (sq *Queue) GetPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	}
 	queueInfo.ID = sq.ID
 	queueInfo.QueueName = sq.QueuePath
+	queueInfo.Partition = sq.Partition
 	queueInfo.Status = sq.stateMachine.Current()
 	queueInfo.PendingResource = sq.pending.DAOMap()
 	queueInfo.MaxResource = sq.maxResource.DAOMap()
@@ -752,6 +755,7 @@ func (sq *Queue) getPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	}
 	queueInfo.ID = sq.ID
 	queueInfo.QueueName = sq.QueuePath
+	queueInfo.Partition = sq.Partition
 	queueInfo.Status = sq.stateMachine.Current()
 	queueInfo.PendingResource = sq.pending.DAOMap()
 	queueInfo.MaxResource = sq.maxResource.DAOMap()
@@ -1784,8 +1788,8 @@ func (sq *Queue) updatePreemptingResourceMetrics() {
 func (sq *Queue) String() string {
 	sq.RLock()
 	defer sq.RUnlock()
-	return fmt.Sprintf("{QueuePath: %s, State: %s, StateTime: %x, MaxResource: %s}",
-		sq.QueuePath, sq.stateMachine.Current(), sq.stateTime, sq.maxResource)
+	return fmt.Sprintf("{QueuePath: %s, State: %s, StateTime: %x, MaxResource: %s, Partition: %s}",
+		sq.QueuePath, sq.stateMachine.Current(), sq.stateTime, sq.maxResource, sq.Partition)
 }
 
 // incRunningApps increments the number of running applications for this queue (recursively).
