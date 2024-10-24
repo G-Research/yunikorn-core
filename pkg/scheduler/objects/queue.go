@@ -707,7 +707,7 @@ func (sq *Queue) GetPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	}
 	queueInfo.ID = sq.ID
 	queueInfo.QueueName = sq.QueuePath
-	queueInfo.Partition = sq.Partition
+	queueInfo.Partition = common.GetPartitionNameWithoutClusterID(sq.Partition)
 	queueInfo.Status = sq.stateMachine.Current()
 	queueInfo.PendingResource = sq.pending.DAOMap()
 	queueInfo.MaxResource = sq.maxResource.DAOMap()
