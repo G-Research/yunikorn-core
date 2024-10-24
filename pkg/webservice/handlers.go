@@ -68,10 +68,12 @@ const (
 	AppStateCompleted = "completed"
 )
 
-var allowedActiveStatusMsg string
-var allowedAppActiveStatuses map[string]bool
-var streamingLimiter *StreamingLimiter
-var maxRESTResponseSize atomic.Uint64
+var (
+	allowedActiveStatusMsg   string
+	allowedAppActiveStatuses map[string]bool
+	streamingLimiter         *StreamingLimiter
+	maxRESTResponseSize      atomic.Uint64
+)
 
 func init() {
 	allowedAppActiveStatuses = make(map[string]bool)
@@ -110,7 +112,7 @@ func init() {
 
 func getStackInfo(w http.ResponseWriter, r *http.Request) {
 	writeHeaders(w)
-	var stack = func() []byte {
+	stack := func() []byte {
 		buf := make([]byte, 1024)
 		for {
 			n := runtime.Stack(buf, true)
@@ -195,7 +197,7 @@ func getClusterJSON(partition *scheduler.PartitionContext) *dao.ClusterDAOInfo {
 
 func getClusterUtilJSON(partition *scheduler.PartitionContext) []*dao.ClusterUtilDAOInfo {
 	var utils []*dao.ClusterUtilDAOInfo
-	var getResource = true
+	getResource := true
 	total := partition.GetTotalPartitionResource()
 	if resources.IsZero(total) {
 		getResource = false
@@ -678,7 +680,7 @@ func getPartitionQueues(w http.ResponseWriter, r *http.Request) {
 	}
 	partitionName := vars.ByName("partition")
 	var partitionQueuesDAOInfo dao.PartitionQueueDAOInfo
-	var partition = schedulerContext.Load().GetPartitionWithoutClusterID(partitionName)
+	partition := schedulerContext.Load().GetPartitionWithoutClusterID(partitionName)
 	if partition != nil {
 		partitionQueuesDAOInfo = partition.GetPartitionQueues()
 	} else {
@@ -986,6 +988,7 @@ func getPartitionInfoDAO(lists map[string]*scheduler.PartitionContext) []*dao.Pa
 
 	for _, partitionContext := range lists {
 		partitionInfo := &dao.PartitionInfo{}
+		partitionInfo.ID = partitionContext.ID
 		partitionInfo.ClusterID = partitionContext.RmID
 		partitionInfo.Name = common.GetPartitionNameWithoutClusterID(partitionContext.Name)
 		partitionInfo.State = partitionContext.GetCurrentState()
@@ -1199,7 +1202,7 @@ func getUserResourceUsage(w http.ResponseWriter, r *http.Request) {
 		buildJSONErrorResponse(w, UserDoesNotExists, http.StatusNotFound)
 		return
 	}
-	var result = userTracker.GetUserResourceUsageDAOInfo()
+	result := userTracker.GetUserResourceUsageDAOInfo()
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		buildJSONErrorResponse(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -1240,7 +1243,7 @@ func getGroupResourceUsage(w http.ResponseWriter, r *http.Request) {
 		buildJSONErrorResponse(w, GroupDoesNotExists, http.StatusNotFound)
 		return
 	}
-	var result = groupTracker.GetGroupResourceUsageDAOInfo()
+	result := groupTracker.GetGroupResourceUsageDAOInfo()
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		buildJSONErrorResponse(w, err.Error(), http.StatusInternalServerError)
 	}

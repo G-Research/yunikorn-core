@@ -39,6 +39,7 @@ type PartitionQueueDAOInfo struct {
 	IsManaged              bool                    `json:"isManaged"` // no omitempty, a false value gives a quick way to understand whether it's managed.
 	Properties             map[string]string       `json:"properties,omitempty"`
 	Parent                 string                  `json:"parent,omitempty"`
+	ParentID               *string                 `json:"parentID,omitempty"`
 	TemplateInfo           *TemplateInfo           `json:"template,omitempty"`
 	Children               []PartitionQueueDAOInfo `json:"children,omitempty"`
 	ChildNames             []string                `json:"childNames,omitempty"`
