@@ -722,7 +722,8 @@ func (sq *Queue) GetPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 		queueInfo.Parent = ""
 	} else {
 		queueInfo.Parent = sq.QueuePath[:strings.LastIndex(sq.QueuePath, configs.DOT)]
-		queueInfo.ParentID = sq.parent.ID
+		parentID := sq.parent.ID
+		queueInfo.ParentID = &parentID
 	}
 	queueInfo.MaxRunningApps = sq.maxRunningApps
 	queueInfo.RunningApps = sq.runningApps
@@ -769,7 +770,8 @@ func (sq *Queue) getPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	}
 	if sq.parent != nil {
 		queueInfo.Parent = sq.QueuePath[:strings.LastIndex(sq.QueuePath, configs.DOT)]
-		queueInfo.ParentID = sq.parent.ID
+		parentID := sq.parent.ID
+		queueInfo.ParentID = &parentID
 	}
 	queueInfo.MaxRunningApps = sq.maxRunningApps
 	queueInfo.RunningApps = sq.runningApps

@@ -110,7 +110,7 @@ func InitQueueMetrics(name string) *QueueMetrics {
 			Help:      "Queue resource metrics. State of the resource includes `guaranteed`, `max`, `allocated`, `pending`, `preempting`.",
 		}, []string{"state", "resource"})
 
-	var queueMetricsList = []prometheus.Collector{
+	queueMetricsList := []prometheus.Collector{
 		q.appMetricsLabel,
 		q.appMetricsSubsystem,
 		q.containerMetrics,

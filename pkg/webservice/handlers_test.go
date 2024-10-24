@@ -59,9 +59,10 @@ const (
 	httpRequestError = "HTTP request creation failed"
 )
 
-const partitionNameWithoutClusterID = "default"
-const normalizedPartitionName = "[rm-123]default"
-const startConf = `
+const (
+	partitionNameWithoutClusterID = "default"
+	normalizedPartitionName       = "[rm-123]default"
+	startConf                     = `
 partitions:
   - name: default
     nodesortpolicy:
@@ -72,6 +73,7 @@ partitions:
           first: "some value with spaces"
           second: somethingElse
 `
+)
 
 const updatedConf = `
 partitions:
@@ -115,38 +117,38 @@ partitions:
 `
 
 const configMultiPartitions = `
-partitions: 
-  - 
+partitions:
+  -
     name: gpu
-    queues: 
-      - 
+    queues:
+      -
         name: root
-  - 
+  -
     name: default
     nodesortpolicy:
         type: fair
-    queues: 
-      - 
+    queues:
+      -
         name: root
-        queues: 
-          - 
+        queues:
+          -
             name: default
             submitacl: "*"
 `
 
 const configTwoLevelQueues = `
-partitions: 
-  - 
+partitions:
+  -
     name: gpu
-    queues: 
-      - 
+    queues:
+      -
         name: root
-  - 
+  -
     name: default
-    nodesortpolicy: 
+    nodesortpolicy:
       type: binpacking
-    queues: 
-      - 
+    queues:
+      -
         name: root
         properties:
           application.sort.policy: fifo
@@ -159,26 +161,26 @@ partitions:
               memory: 400000
             max:
               memory: 600000
-        queues: 
-          - 
+        queues:
+          -
             name: a
-            queues: 
-              - 
+            queues:
+              -
                 name: a1
                 properties:
                   application.sort.policy: fifo
-                resources: 
-                  guaranteed: 
+                resources:
+                  guaranteed:
                     memory: 500000
                     vcore: 50000
-                  max: 
+                  max:
                     memory: 800000
                     vcore: 80000
-            resources: 
-              guaranteed: 
+            resources:
+              guaranteed:
                 memory: 500000
                 vcore: 50000
-              max: 
+              max:
                 memory: 800000
                 vcore: 80000
 `
@@ -275,19 +277,19 @@ partitions:
             - name: default
 `
 
-const rmID = "rm-123"
-const policyGroup = "default-policy-group"
-const queueName = "root.default"
-const nodeID = "node-1"
-const invalidQueueName = "root.parent.test%Zt%23%3Art%3A%2F_ff-test"
-
-var (
-	updatedExtraConf = map[string]string{
-		"log.level":                  "info",
-		"service.schedulingInterval": "1s",
-		"admissionController.accessControl.bypassAuth": "false",
-	}
+const (
+	rmID             = "rm-123"
+	policyGroup      = "default-policy-group"
+	queueName        = "root.default"
+	nodeID           = "node-1"
+	invalidQueueName = "root.parent.test%Zt%23%3Art%3A%2F_ff-test"
 )
+
+var updatedExtraConf = map[string]string{
+	"log.level":                  "info",
+	"service.schedulingInterval": "1s",
+	"admissionController.accessControl.bypassAuth": "false",
+}
 
 // setup To take care of setting up config, cluster, partitions etc
 func setup(t *testing.T, config string, partitionCount int) *scheduler.PartitionContext {
@@ -1542,7 +1544,8 @@ func TestGetQueueApplicationsHandler(t *testing.T) {
 		PartitionName:    part.Name,
 		TaskGroupName:    tg,
 		ResourcePerAlloc: res,
-		Placeholder:      true})
+		Placeholder:      true,
+	})
 	err := app.AddAllocationAsk(ask)
 	assert.NilError(t, err, "ask should have been added to app")
 	app.SetTimedOutPlaceholder(tg, 1)
@@ -1695,42 +1698,49 @@ func TestGetPartitionApplicationsByStateHandler(t *testing.T) {
 	expectedActiveDao := []*dao.ApplicationDAOInfo{getApplicationDAO(app1, sum1), getApplicationDAO(app2, sum2)}
 	checkLegalGetAppsRequest(t, "/ws/v1/partition/default/applications/Active", httprouter.Params{
 		httprouter.Param{Key: "partition", Value: partitionNameWithoutClusterID},
-		httprouter.Param{Key: "state", Value: "Active"}}, expectedActiveDao)
+		httprouter.Param{Key: "state", Value: "Active"},
+	}, expectedActiveDao)
 
 	// test get active app with running state
 	expectedRunningDao := []*dao.ApplicationDAOInfo{getApplicationDAO(app2, sum2)}
 	checkLegalGetAppsRequest(t, "/ws/v1/partition/default/applications/Active?status=Running", httprouter.Params{
 		httprouter.Param{Key: "partition", Value: partitionNameWithoutClusterID},
-		httprouter.Param{Key: "state", Value: "Active"}}, expectedRunningDao)
+		httprouter.Param{Key: "state", Value: "Active"},
+	}, expectedRunningDao)
 
 	// test get completed app
 	sum3 := app3.GetApplicationSummary(defaultPartition.RmID)
 	expectedCompletedDao := []*dao.ApplicationDAOInfo{getApplicationDAO(app3, sum3)}
 	checkLegalGetAppsRequest(t, "/ws/v1/partition/default/applications/Completed", httprouter.Params{
 		httprouter.Param{Key: "partition", Value: partitionNameWithoutClusterID},
-		httprouter.Param{Key: "state", Value: "Completed"}}, expectedCompletedDao)
+		httprouter.Param{Key: "state", Value: "Completed"},
+	}, expectedCompletedDao)
 
 	// test get rejected app
 	sum4 := app4.GetApplicationSummary(defaultPartition.RmID)
 	expectedRejectedDao := []*dao.ApplicationDAOInfo{getApplicationDAO(app4, sum4)}
 	checkLegalGetAppsRequest(t, "/ws/v1/partition/default/applications/Rejected", httprouter.Params{
 		httprouter.Param{Key: "partition", Value: partitionNameWithoutClusterID},
-		httprouter.Param{Key: "state", Value: "Rejected"}}, expectedRejectedDao)
+		httprouter.Param{Key: "state", Value: "Rejected"},
+	}, expectedRejectedDao)
 
 	// test nonexistent partition
 	checkIllegalGetAppsRequest(t, "/ws/v1/partition/default/applications/Active", httprouter.Params{
 		httprouter.Param{Key: "partition", Value: "notexists"},
-		httprouter.Param{Key: "state", Value: "Active"}}, assertPartitionNotExists)
+		httprouter.Param{Key: "state", Value: "Active"},
+	}, assertPartitionNotExists)
 
 	// test disallow state
 	checkIllegalGetAppsRequest(t, "/ws/v1/partition/default/applications/Accepted", httprouter.Params{
 		httprouter.Param{Key: "partition", Value: partitionNameWithoutClusterID},
-		httprouter.Param{Key: "state", Value: "Accepted"}}, assertAppStateNotAllow)
+		httprouter.Param{Key: "state", Value: "Accepted"},
+	}, assertAppStateNotAllow)
 
 	// test disallow active state
 	checkIllegalGetAppsRequest(t, "/ws/v1/partition/default/applications/Active?status=invalid", httprouter.Params{
 		httprouter.Param{Key: "partition", Value: partitionNameWithoutClusterID},
-		httprouter.Param{Key: "state", Value: "Active"}}, assertActiveStateNotAllow)
+		httprouter.Param{Key: "state", Value: "Active"},
+	}, assertActiveStateNotAllow)
 
 	// test missing params name
 	checkIllegalGetAppsRequest(t, "/ws/v1/partition/default/applications/Active", nil, assertParamsMissing)
@@ -1852,7 +1862,8 @@ func TestGetApplicationHandler(t *testing.T) {
 	ask := objects.NewAllocationFromSI(&si.Allocation{
 		ApplicationID:    "app-1",
 		PartitionName:    part.Name,
-		ResourcePerAlloc: res})
+		ResourcePerAlloc: res,
+	})
 	err := app.AddAllocationAsk(ask)
 	assert.NilError(t, err, "ask should have been added to app")
 
@@ -2809,7 +2820,8 @@ func prepareUserAndGroupContext(t *testing.T, config string) {
 	ask := objects.NewAllocationFromSI(&si.Allocation{
 		ApplicationID:    "app-1",
 		PartitionName:    part.Name,
-		ResourcePerAlloc: res})
+		ResourcePerAlloc: res,
+	})
 	err := app.AddAllocationAsk(ask)
 	assert.NilError(t, err, "ask should have been added to app")
 
