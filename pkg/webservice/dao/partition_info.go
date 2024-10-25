@@ -19,6 +19,7 @@
 package dao
 
 type PartitionInfo struct {
+	ID                      string            `json:"id"`
 	ClusterID               string            `json:"clusterId"`         // no omitempty, cluster id should not be empty
 	Name                    string            `json:"name"`              // no omitempty, name should not be empty
 	Capacity                PartitionCapacity `json:"capacity"`          // no omitempty, omitempty doesn't work on a structure value

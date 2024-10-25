@@ -47,7 +47,9 @@ import (
 	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
 )
 
-var maxPreemptionsPerQueue = 10 // maximum number of asks to attempt to preempt for in a single queue
+var (
+	maxPreemptionsPerQueue = 10 // maximum number of asks to attempt to preempt for in a single queue
+)
 
 // Queue structure inside Scheduler
 type Queue struct {
@@ -722,7 +724,8 @@ func (sq *Queue) GetPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 		queueInfo.Parent = ""
 	} else {
 		queueInfo.Parent = sq.QueuePath[:strings.LastIndex(sq.QueuePath, configs.DOT)]
-		queueInfo.ParentID = sq.parent.ID
+		parentID := sq.parent.ID
+		queueInfo.ParentID = &parentID
 	}
 	queueInfo.MaxRunningApps = sq.maxRunningApps
 	queueInfo.RunningApps = sq.runningApps
@@ -769,7 +772,8 @@ func (sq *Queue) getPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	}
 	if sq.parent != nil {
 		queueInfo.Parent = sq.QueuePath[:strings.LastIndex(sq.QueuePath, configs.DOT)]
-		queueInfo.ParentID = sq.parent.ID
+		parentID := sq.parent.ID
+		queueInfo.ParentID = &parentID
 	}
 	queueInfo.MaxRunningApps = sq.maxRunningApps
 	queueInfo.RunningApps = sq.runningApps

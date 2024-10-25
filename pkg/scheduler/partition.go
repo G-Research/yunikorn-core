@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/looplab/fsm"
+	"github.com/oklog/ulid/v2"
 	"go.uber.org/zap"
 
 	"github.com/G-Research/yunikorn-core/pkg/common"
@@ -46,6 +47,7 @@ import (
 )
 
 type PartitionContext struct {
+	ID   string
 	RmID string // the RM the partition belongs to
 	Name string // name of the partition
 
@@ -88,6 +90,7 @@ func newPartitionContext(conf configs.PartitionConfig, rmID string, cc *ClusterC
 		return nil, fmt.Errorf("partition cannot be created without name or RM, one is not set")
 	}
 	pc := &PartitionContext{
+		ID:                    ulid.Make().String(),
 		Name:                  conf.Name,
 		RmID:                  rmID,
 		stateMachine:          objects.NewObjectState(),
