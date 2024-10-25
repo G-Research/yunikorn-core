@@ -1176,9 +1176,7 @@ func assertPartitionQueueDaoInfo(t *testing.T, partitionQueueDAOInfo *dao.Partit
 	assert.Assert(t, partitionQueueDAOInfo.ID != "")
 	assert.Equal(t, partitionQueueDAOInfo.QueueName, queueName)
 	assert.Equal(t, partitionQueueDAOInfo.Status, objects.Active.String())
-	assert.Equal(t, partitionQueueDAOInfo.Partition, common.GetPartitionNameWithoutClusterID(partition),
-		"DAO partition is %s and partition-without-clusterID is %s",
-		partitionQueueDAOInfo.Partition, common.GetPartitionNameWithoutClusterID(partition))
+	assert.Equal(t, partitionQueueDAOInfo.Partition, common.GetPartitionNameWithoutClusterID(partition))
 	assert.Assert(t, partitionQueueDAOInfo.PendingResource == nil)
 	assert.DeepEqual(t, partitionQueueDAOInfo.MaxResource, maxResource)
 	assert.DeepEqual(t, partitionQueueDAOInfo.GuaranteedResource, gResource)
