@@ -110,8 +110,9 @@ func NewNode(proto *si.NodeInfo) *Node {
 		return nil
 	}
 
+	id, _ := ulid.New(ms, entropy)
 	sn := &Node{
-		ID:                ulid.Make().String(),
+		ID:                id.String(),
 		NodeID:            proto.NodeID,
 		reservations:      make(map[string]*reservation),
 		totalResource:     resources.NewResourceFromProto(proto.SchedulableResource),

@@ -115,8 +115,9 @@ func (sq *Queue) daoSnapshot() string {
 
 // newBlankQueue creates a new empty queue objects with all values initialised.
 func newBlankQueue() *Queue {
+	id, _ := ulid.New(ms, entropy)
 	return &Queue{
-		ID:                     ulid.Make().String(),
+		ID:                     id.String(),
 		children:               make(map[string]*Queue),
 		childPriorities:        make(map[string]int32),
 		applications:           make(map[string]*Application),
@@ -757,7 +758,7 @@ func (sq *Queue) getPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	}
 	queueInfo.ID = sq.ID
 	queueInfo.QueueName = sq.QueuePath
-	queueInfo.Partition = sq.Partition
+	queueInfo.Partition = common.GetPartitionNameWithoutClusterID(sq.Partition)
 	queueInfo.Status = sq.stateMachine.Current()
 	queueInfo.PendingResource = sq.pending.DAOMap()
 	queueInfo.MaxResource = sq.maxResource.DAOMap()
