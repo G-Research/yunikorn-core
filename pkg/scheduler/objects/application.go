@@ -207,8 +207,9 @@ func (app *Application) dao() *dao.ApplicationDAOInfo {
 }
 
 func NewApplication(siApp *si.AddApplicationRequest, ugi security.UserGroup, eventHandler handler.EventHandler, rmID string) *Application {
+	id, _ := ulid.New(ms, entropy)
 	app := &Application{
-		ID:                    ulid.Make().String(),
+		ID:                    id.String(),
 		ApplicationID:         siApp.ApplicationID,
 		Partition:             siApp.PartitionName,
 		SubmissionTime:        time.Now(),

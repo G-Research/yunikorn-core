@@ -171,8 +171,9 @@ func newNodeRes(nodeID string, total *resources.Resource) *Node {
 }
 
 func newNodeInternal(nodeID string, total, occupied *resources.Resource) *Node {
+	id, _ := ulid.New(ms, entropy)
 	sn := &Node{
-		ID:                ulid.Make().String(),
+		ID:                id.String(),
 		NodeID:            nodeID,
 		Hostname:          "",
 		Rackname:          "",
