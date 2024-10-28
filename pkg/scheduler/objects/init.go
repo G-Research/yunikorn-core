@@ -32,6 +32,6 @@ var (
 
 func init() {
 	entropy = rand.New(new(rand.LockedSource))
-	entropy.Seed(uint64(time.Now().UnixMicro()))
+	entropy.Seed(uint64(time.Now().UnixNano()))
 	ms = ulid.Timestamp(time.Now())
 }
