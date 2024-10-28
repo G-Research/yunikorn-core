@@ -84,6 +84,7 @@ type Application struct {
 	ID             string            // a formatted ULID
 	ApplicationID  string            // application ID
 	Partition      string            // partition Name
+	PartitionID    string            // partition ID (a formatted ULID)
 	SubmissionTime time.Time         // time application was submitted
 	tags           map[string]string // application tags used in scheduling
 
@@ -185,6 +186,7 @@ func (app *Application) dao() *dao.ApplicationDAOInfo {
 		MaxUsedResource:     app.maxAllocatedResource.Clone().DAOMap(),
 		PendingResource:     app.pending.Clone().DAOMap(),
 		Partition:           common.GetPartitionNameWithoutClusterID(app.Partition),
+		PartitionID:         app.PartitionID,
 		QueueName:           app.queuePath,
 		SubmissionTime:      app.SubmissionTime.UnixNano(),
 		FinishedTime:        common.ZeroTimeInUnixNano(app.finishedTime),
@@ -258,8 +260,8 @@ func (sa *Application) String() string {
 	if sa == nil {
 		return "application is nil"
 	}
-	return fmt.Sprintf("applicationID: %s, Partition: %s, SubmissionTime: %x, State: %s, ID: %s",
-		sa.ApplicationID, sa.Partition, sa.SubmissionTime, sa.stateMachine.Current(), sa.ID)
+	return fmt.Sprintf("applicationID: %s, Partition: %s, Partition ID: %s, SubmissionTime: %x, State: %s, ID: %s",
+		sa.ApplicationID, sa.Partition, sa.PartitionID, sa.SubmissionTime, sa.stateMachine.Current(), sa.ID)
 }
 
 func (sa *Application) SetState(state string) {
