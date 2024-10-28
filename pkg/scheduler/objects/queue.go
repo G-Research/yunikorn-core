@@ -53,10 +53,10 @@ var (
 
 // Queue structure inside Scheduler
 type Queue struct {
-	ID        string // A formatted ULID
-	QueuePath string // Fully qualified path for the queue
-	Name      string // Queue name as in the config etc.
-	Partition string // Partition in which this queue resides
+	ID          string // A formatted ULID
+	QueuePath   string // Fully qualified path for the queue
+	Name        string // Queue name as in the config etc.
+	PartitionID string // Partition ID (not name) in which this queue resides
 
 	// Private fields need protection
 	sortType            policies.SortPolicy       // How applications (leaf) or queues (parents) are sorted
@@ -158,7 +158,7 @@ func NewConfiguredQueue(conf configs.QueueConfig, parent *Queue) (*Queue, error)
 		sq.mergeProperties(parent.getProperties(), conf.Properties)
 		sq.UpdateQueueProperties()
 		sq.QueuePath = parent.QueuePath + configs.DOT + sq.Name
-		sq.Partition = parent.Partition
+		sq.PartitionID = parent.PartitionID
 		err := parent.addChildQueue(sq)
 		if err != nil {
 			return nil, errors.Join(errors.New("configured queue creation failed: "), err)
@@ -708,7 +708,7 @@ func (sq *Queue) GetPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	}
 	queueInfo.ID = sq.ID
 	queueInfo.QueueName = sq.QueuePath
-	queueInfo.Partition = common.GetPartitionNameWithoutClusterID(sq.Partition)
+	queueInfo.PartitionID = sq.PartitionID
 	queueInfo.Status = sq.stateMachine.Current()
 	queueInfo.PendingResource = sq.pending.DAOMap()
 	queueInfo.MaxResource = sq.maxResource.DAOMap()
@@ -758,7 +758,7 @@ func (sq *Queue) getPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	}
 	queueInfo.ID = sq.ID
 	queueInfo.QueueName = sq.QueuePath
-	queueInfo.Partition = common.GetPartitionNameWithoutClusterID(sq.Partition)
+	queueInfo.PartitionID = sq.PartitionID
 	queueInfo.Status = sq.stateMachine.Current()
 	queueInfo.PendingResource = sq.pending.DAOMap()
 	queueInfo.MaxResource = sq.maxResource.DAOMap()
@@ -1792,7 +1792,7 @@ func (sq *Queue) String() string {
 	sq.RLock()
 	defer sq.RUnlock()
 	return fmt.Sprintf("{QueuePath: %s, State: %s, StateTime: %x, MaxResource: %s, Partition: %s}",
-		sq.QueuePath, sq.stateMachine.Current(), sq.stateTime, sq.maxResource, sq.Partition)
+		sq.QueuePath, sq.stateMachine.Current(), sq.stateTime, sq.maxResource, sq.PartitionID)
 }
 
 // incRunningApps increments the number of running applications for this queue (recursively).

@@ -1113,7 +1113,7 @@ func TestMetricsNotEmpty(t *testing.T) {
 
 //nolint:funlen
 func TestGetPartitionQueuesHandler(t *testing.T) {
-	setup(t, configTwoLevelQueues, 2)
+	partitionCtx := setup(t, configTwoLevelQueues, 2)
 
 	NewWebApp(schedulerContext.Load(), nil)
 
@@ -1145,17 +1145,17 @@ func TestGetPartitionQueuesHandler(t *testing.T) {
 	err = json.Unmarshal(resp.outputBytes, &partitionQueuesDao)
 	assert.NilError(t, err, unmarshalError)
 	// assert root fields
-	assertPartitionQueueDaoInfo(t, &partitionQueuesDao, configs.RootQueue, configs.DefaultPartition, nil, nil, false, true, "", &templateInfo)
+	assertPartitionQueueDaoInfo(t, &partitionQueuesDao, configs.RootQueue, partitionCtx.ID, nil, nil, false, true, "", &templateInfo)
 
 	// assert child root.a fields
 	assert.Equal(t, len(partitionQueuesDao.Children), 1)
 	child := &partitionQueuesDao.Children[0]
-	assertPartitionQueueDaoInfo(t, child, "root.a", configs.DefaultPartition, maxResource.DAOMap(), guaranteedResource.DAOMap(), false, true, "root", &templateInfo)
+	assertPartitionQueueDaoInfo(t, child, "root.a", partitionCtx.ID, maxResource.DAOMap(), guaranteedResource.DAOMap(), false, true, "root", &templateInfo)
 
 	// assert child root.a.a1 fields
 	assert.Equal(t, len(partitionQueuesDao.Children[0].Children), 1)
 	child = &partitionQueuesDao.Children[0].Children[0]
-	assertPartitionQueueDaoInfo(t, child, "root.a.a1", configs.DefaultPartition, maxResource.DAOMap(), guaranteedResource.DAOMap(), true, true, "root.a", nil)
+	assertPartitionQueueDaoInfo(t, child, "root.a.a1", partitionCtx.ID, maxResource.DAOMap(), guaranteedResource.DAOMap(), true, true, "root.a", nil)
 
 	// test partition not exists
 	req, err = createRequest(t, "/ws/v1/partition/default/queues", map[string]string{"partition": "notexists"})
@@ -1172,11 +1172,11 @@ func TestGetPartitionQueuesHandler(t *testing.T) {
 	assertParamsMissing(t, resp)
 }
 
-func assertPartitionQueueDaoInfo(t *testing.T, partitionQueueDAOInfo *dao.PartitionQueueDAOInfo, queueName string, partition string, maxResource map[string]int64, gResource map[string]int64, leaf bool, isManaged bool, parent string, templateInfo *dao.TemplateInfo) {
+func assertPartitionQueueDaoInfo(t *testing.T, partitionQueueDAOInfo *dao.PartitionQueueDAOInfo, queueName string, partitionID string, maxResource map[string]int64, gResource map[string]int64, leaf bool, isManaged bool, parent string, templateInfo *dao.TemplateInfo) {
 	assert.Assert(t, partitionQueueDAOInfo.ID != "")
 	assert.Equal(t, partitionQueueDAOInfo.QueueName, queueName)
 	assert.Equal(t, partitionQueueDAOInfo.Status, objects.Active.String())
-	assert.Equal(t, partitionQueueDAOInfo.Partition, common.GetPartitionNameWithoutClusterID(partition))
+	assert.Equal(t, partitionQueueDAOInfo.PartitionID, partitionID)
 	assert.Assert(t, partitionQueueDAOInfo.PendingResource == nil)
 	assert.DeepEqual(t, partitionQueueDAOInfo.MaxResource, maxResource)
 	assert.DeepEqual(t, partitionQueueDAOInfo.GuaranteedResource, gResource)
