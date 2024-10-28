@@ -64,8 +64,8 @@ type Node struct {
 	listeners    []NodeListener          // a list of node listeners
 	nodeEvents   *schedEvt.NodeEvents
 
+	snapshotLock locking.Mutex
 	snapshot     bytes.Buffer
-	snapshotLock locking.RWMutex
 
 	locking.RWMutex
 }

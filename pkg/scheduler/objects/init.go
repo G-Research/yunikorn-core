@@ -19,7 +19,6 @@
 package objects
 
 import (
-	"sync"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -27,15 +26,12 @@ import (
 )
 
 var (
-	once    sync.Once
 	entropy *rand.Rand
 	ms      uint64
 )
 
 func init() {
-	once.Do(func() {
-		entropy = rand.New(new(rand.LockedSource))
-		entropy.Seed(uint64(time.Now().UnixMicro()))
-		ms = ulid.Timestamp(time.Now())
-	})
+	entropy = rand.New(new(rand.LockedSource))
+	entropy.Seed(uint64(time.Now().UnixMicro()))
+	ms = ulid.Timestamp(time.Now())
 }

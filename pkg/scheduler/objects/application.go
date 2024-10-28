@@ -126,8 +126,8 @@ type Application struct {
 	appEvents             *schedEvt.ApplicationEvents
 	sendStateChangeEvents bool // whether to send state-change events or not (simplifies testing)
 
+	snapshotLock locking.Mutex
 	snapshot     bytes.Buffer
-	snapshotLock locking.RWMutex
 
 	locking.RWMutex
 }

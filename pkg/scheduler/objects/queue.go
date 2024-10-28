@@ -94,8 +94,8 @@ type Queue struct {
 	template               *template.Template
 	queueEvents            *schedEvt.QueueEvents
 
+	snapshotLock locking.Mutex
 	snapshot     bytes.Buffer
-	snapshotLock locking.RWMutex
 
 	locking.RWMutex
 }
