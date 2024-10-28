@@ -45,11 +45,12 @@ const (
 type Node struct {
 	// Fields for fast access These fields are considered read only.
 	// Values should only be set when creating a new node and never changed.
-	ID        string
-	NodeID    string
-	Hostname  string
-	Rackname  string
-	Partition string
+	ID          string
+	NodeID      string
+	Hostname    string
+	Rackname    string
+	Partition   string
+	PartitionID string
 
 	// Private fields need protection
 	attributes        map[string]string
@@ -77,6 +78,7 @@ func (node *Node) dao() *dao.NodeDAOInfo {
 		HostName:           node.Hostname,
 		RackName:           node.Rackname,
 		Partition:          node.Partition,
+		PartitionID:        node.PartitionID,
 		Attributes:         node.GetAttributes(),
 		Capacity:           node.totalResource.Clone().DAOMap(),
 		Occupied:           node.occupiedResource.Clone().DAOMap(),
@@ -140,8 +142,9 @@ func (sn *Node) String() string {
 	if sn == nil {
 		return "node is nil"
 	}
-	return fmt.Sprintf("NodeID %s, Partition %s, Schedulable %t, Total %s, Allocated %s, #allocations %d, ID %s",
-		sn.NodeID, sn.Partition, sn.schedulable, sn.totalResource, sn.allocatedResource, len(sn.allocations), sn.ID)
+	return fmt.Sprintf("NodeID %s, Partition %s, PartitionID %s, Schedulable %t, Total %s, Allocated %s, #allocations %d, ID %s",
+		sn.NodeID, sn.Partition, sn.PartitionID, sn.schedulable, sn.totalResource, sn.allocatedResource,
+		len(sn.allocations), sn.ID)
 }
 
 // Set the attributes and fast access fields.

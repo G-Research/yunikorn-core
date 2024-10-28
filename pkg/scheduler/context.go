@@ -604,6 +604,7 @@ func (cc *ClusterContext) addNode(nodeInfo *si.NodeInfo, schedulable bool) error
 			zap.String("partitionName", sn.Partition))
 		return err
 	}
+	sn.PartitionID = partition.ID
 
 	err := partition.AddNode(sn)
 	sn.SendNodeAddedEvent()
