@@ -89,8 +89,10 @@ func newPartitionContext(conf configs.PartitionConfig, rmID string, cc *ClusterC
 			zap.Any("cluster context", cc))
 		return nil, fmt.Errorf("partition cannot be created without name or RM, one is not set")
 	}
+
+	id, _ := ulid.New(objects.Ms, objects.Entropy)
 	pc := &PartitionContext{
-		ID:                    ulid.Make().String(),
+		ID:                    id.String(),
 		Name:                  conf.Name,
 		RmID:                  rmID,
 		stateMachine:          objects.NewObjectState(),
@@ -121,6 +123,8 @@ func (pc *PartitionContext) initialPartitionFromConfig(conf configs.PartitionCon
 	if pc.root, err = objects.NewConfiguredQueue(queueConf, nil); err != nil {
 		return err
 	}
+	pc.root.PartitionID = pc.ID
+
 	// recursively add the queues to the root
 	if err = pc.addQueue(queueConf.Queues, pc.root); err != nil {
 		return err
@@ -208,6 +212,7 @@ func (pc *PartitionContext) addQueue(conf []configs.QueueConfig, parent *objects
 			if err != nil {
 				return err
 			}
+			thisQueue.PartitionID = pc.ID
 		}
 	}
 	return nil
@@ -495,7 +500,7 @@ func (pc *PartitionContext) getQueueInternal(name string) *objects.Queue {
 // GetPartitionQueues builds the queue info for the whole queue structure to pass to the webservice
 func (pc *PartitionContext) GetPartitionQueues() dao.PartitionQueueDAOInfo {
 	partitionQueueDAOInfo := pc.root.GetPartitionQueueDAOInfo(true)
-	partitionQueueDAOInfo.Partition = common.GetPartitionNameWithoutClusterID(pc.Name)
+	partitionQueueDAOInfo.PartitionID = pc.ID
 	return partitionQueueDAOInfo
 }
 

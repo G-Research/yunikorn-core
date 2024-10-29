@@ -330,6 +330,7 @@ func getApplicationDAO(app *objects.Application, summary *objects.ApplicationSum
 		MaxUsedResource:     app.GetMaxAllocatedResource().DAOMap(),
 		PendingResource:     app.GetPendingResource().DAOMap(),
 		Partition:           common.GetPartitionNameWithoutClusterID(app.Partition),
+		PartitionID:         app.PartitionID,
 		QueueName:           app.GetQueuePath(),
 		SubmissionTime:      app.SubmissionTime.UnixNano(),
 		FinishedTime:        common.ZeroTimeInUnixNano(app.FinishedTime()),
@@ -402,6 +403,7 @@ func getNodeDAO(node *objects.Node) *dao.NodeDAOInfo {
 		HostName:           node.Hostname,
 		RackName:           node.Rackname,
 		Partition:          node.Partition,
+		PartitionID:        node.PartitionID,
 		Attributes:         node.GetAttributes(),
 		Capacity:           node.GetCapacity().DAOMap(),
 		Occupied:           node.GetOccupiedResource().DAOMap(),
@@ -988,6 +990,7 @@ func getPartitionInfoDAO(lists map[string]*scheduler.PartitionContext) []*dao.Pa
 		partitionInfo := &dao.PartitionInfo{}
 		partitionInfo.ClusterID = partitionContext.RmID
 		partitionInfo.Name = common.GetPartitionNameWithoutClusterID(partitionContext.Name)
+		partitionInfo.ID = partitionContext.ID
 		partitionInfo.State = partitionContext.GetCurrentState()
 		partitionInfo.LastStateTransitionTime = partitionContext.GetStateTime().UnixNano()
 

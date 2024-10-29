@@ -53,9 +53,10 @@ var (
 
 // Queue structure inside Scheduler
 type Queue struct {
-	ID        string // A formatted ULID
-	QueuePath string // Fully qualified path for the queue
-	Name      string // Queue name as in the config etc.
+	ID          string // A formatted ULID
+	QueuePath   string // Fully qualified path for the queue
+	Name        string // Queue name as in the config etc.
+	PartitionID string // Partition ID (not name) in which this queue resides
 
 	// Private fields need protection
 	sortType            policies.SortPolicy       // How applications (leaf) or queues (parents) are sorted
@@ -93,15 +94,15 @@ type Queue struct {
 	template               *template.Template
 	queueEvents            *schedEvt.QueueEvents
 
-	snapshot          bytes.Buffer
-	queueSnapshotLock locking.RWMutex
+	snapshotLock locking.Mutex
+	snapshot     bytes.Buffer
 
 	locking.RWMutex
 }
 
 func (sq *Queue) daoSnapshot() string {
-	sq.queueSnapshotLock.Lock()
-	defer sq.queueSnapshotLock.Unlock()
+	sq.snapshotLock.Lock()
+	defer sq.snapshotLock.Unlock()
 
 	if err := json.NewEncoder(&sq.snapshot).Encode(sq.getPartitionQueueDAOInfo(false)); err != nil {
 		// TODO: log error
@@ -114,8 +115,9 @@ func (sq *Queue) daoSnapshot() string {
 
 // newBlankQueue creates a new empty queue objects with all values initialised.
 func newBlankQueue() *Queue {
+	id, _ := ulid.New(Ms, Entropy)
 	return &Queue{
-		ID:                     ulid.Make().String(),
+		ID:                     id.String(),
 		children:               make(map[string]*Queue),
 		childPriorities:        make(map[string]int32),
 		applications:           make(map[string]*Application),
@@ -156,6 +158,7 @@ func NewConfiguredQueue(conf configs.QueueConfig, parent *Queue) (*Queue, error)
 		sq.mergeProperties(parent.getProperties(), conf.Properties)
 		sq.UpdateQueueProperties()
 		sq.QueuePath = parent.QueuePath + configs.DOT + sq.Name
+		sq.PartitionID = parent.PartitionID
 		err := parent.addChildQueue(sq)
 		if err != nil {
 			return nil, errors.Join(errors.New("configured queue creation failed: "), err)
@@ -705,6 +708,7 @@ func (sq *Queue) GetPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	}
 	queueInfo.ID = sq.ID
 	queueInfo.QueueName = sq.QueuePath
+	queueInfo.PartitionID = sq.PartitionID
 	queueInfo.Status = sq.stateMachine.Current()
 	queueInfo.PendingResource = sq.pending.DAOMap()
 	queueInfo.MaxResource = sq.maxResource.DAOMap()
@@ -754,6 +758,7 @@ func (sq *Queue) getPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	}
 	queueInfo.ID = sq.ID
 	queueInfo.QueueName = sq.QueuePath
+	queueInfo.PartitionID = sq.PartitionID
 	queueInfo.Status = sq.stateMachine.Current()
 	queueInfo.PendingResource = sq.pending.DAOMap()
 	queueInfo.MaxResource = sq.maxResource.DAOMap()
@@ -1786,8 +1791,8 @@ func (sq *Queue) updatePreemptingResourceMetrics() {
 func (sq *Queue) String() string {
 	sq.RLock()
 	defer sq.RUnlock()
-	return fmt.Sprintf("{QueuePath: %s, State: %s, StateTime: %x, MaxResource: %s}",
-		sq.QueuePath, sq.stateMachine.Current(), sq.stateTime, sq.maxResource)
+	return fmt.Sprintf("{QueuePath: %s, State: %s, StateTime: %x, MaxResource: %s, Partition: %s}",
+		sq.QueuePath, sq.stateMachine.Current(), sq.stateTime, sq.maxResource, sq.PartitionID)
 }
 
 // incRunningApps increments the number of running applications for this queue (recursively).

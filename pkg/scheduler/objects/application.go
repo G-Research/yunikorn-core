@@ -84,6 +84,7 @@ type Application struct {
 	ID             string            // a formatted ULID
 	ApplicationID  string            // application ID
 	Partition      string            // partition Name
+	PartitionID    string            // partition ID (a formatted ULID)
 	SubmissionTime time.Time         // time application was submitted
 	tags           map[string]string // application tags used in scheduling
 
@@ -126,8 +127,8 @@ type Application struct {
 	appEvents             *schedEvt.ApplicationEvents
 	sendStateChangeEvents bool // whether to send state-change events or not (simplifies testing)
 
-	snapshot        bytes.Buffer
-	appSnapshotLock locking.RWMutex
+	snapshotLock locking.Mutex
+	snapshot     bytes.Buffer
 
 	locking.RWMutex
 }
@@ -156,8 +157,8 @@ func (sa *Application) GetApplicationSummary(rmID string) *ApplicationSummary {
 }
 
 func (sa *Application) daoSnapshot() string {
-	sa.appSnapshotLock.Lock()
-	defer sa.appSnapshotLock.Unlock()
+	sa.snapshotLock.Lock()
+	defer sa.snapshotLock.Unlock()
 
 	if err := json.NewEncoder(&sa.snapshot).Encode(sa.dao()); err != nil {
 		// TODO: log error
@@ -185,6 +186,7 @@ func (app *Application) dao() *dao.ApplicationDAOInfo {
 		MaxUsedResource:     app.maxAllocatedResource.Clone().DAOMap(),
 		PendingResource:     app.pending.Clone().DAOMap(),
 		Partition:           common.GetPartitionNameWithoutClusterID(app.Partition),
+		PartitionID:         app.PartitionID,
 		QueueName:           app.queuePath,
 		SubmissionTime:      app.SubmissionTime.UnixNano(),
 		FinishedTime:        common.ZeroTimeInUnixNano(app.finishedTime),
@@ -207,8 +209,9 @@ func (app *Application) dao() *dao.ApplicationDAOInfo {
 }
 
 func NewApplication(siApp *si.AddApplicationRequest, ugi security.UserGroup, eventHandler handler.EventHandler, rmID string) *Application {
+	id, _ := ulid.New(Ms, Entropy)
 	app := &Application{
-		ID:                    ulid.Make().String(),
+		ID:                    id.String(),
 		ApplicationID:         siApp.ApplicationID,
 		Partition:             siApp.PartitionName,
 		SubmissionTime:        time.Now(),
@@ -257,8 +260,8 @@ func (sa *Application) String() string {
 	if sa == nil {
 		return "application is nil"
 	}
-	return fmt.Sprintf("applicationID: %s, Partition: %s, SubmissionTime: %x, State: %s, ID: %s",
-		sa.ApplicationID, sa.Partition, sa.SubmissionTime, sa.stateMachine.Current(), sa.ID)
+	return fmt.Sprintf("applicationID: %s, Partition: %s, Partition ID: %s, SubmissionTime: %x, State: %s, ID: %s",
+		sa.ApplicationID, sa.Partition, sa.PartitionID, sa.SubmissionTime, sa.stateMachine.Current(), sa.ID)
 }
 
 func (sa *Application) SetState(state string) {

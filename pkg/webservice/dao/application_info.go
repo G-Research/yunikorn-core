@@ -32,8 +32,9 @@ type ApplicationDAOInfo struct {
 	UsedResource        map[string]int64           `json:"usedResource,omitempty"`
 	MaxUsedResource     map[string]int64           `json:"maxUsedResource,omitempty"`
 	PendingResource     map[string]int64           `json:"pendingResource,omitempty"`
-	Partition           string                     `json:"partition"` // no omitempty, partition should not be empty
-	QueueName           string                     `json:"queueName"` // no omitempty, queue name should not be empty
+	Partition           string                     `json:"partition"`    // no omitempty, partition should not be empty
+	PartitionID         string                     `json:"partition_id"` // no omitempty partition id should not be empty
+	QueueName           string                     `json:"queueName"`    // no omitempty, queue name should not be empty
 	SubmissionTime      int64                      `json:"submissionTime,omitempty"`
 	FinishedTime        *int64                     `json:"finishedTime,omitempty"`
 	Requests            []*AllocationAskDAOInfo    `json:"requests,omitempty"`

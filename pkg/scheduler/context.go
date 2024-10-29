@@ -537,6 +537,9 @@ func (cc *ClusterContext) handleRMUpdateApplicationEvent(event *rmevent.RMUpdate
 		acceptedApps = append(acceptedApps, &si.AcceptedApplication{
 			ApplicationID: schedApp.ApplicationID,
 		})
+
+		schedApp.PartitionID = partition.ID
+
 		log.Log(log.SchedContext).Info("Added application to partition",
 			zap.String("applicationID", app.ApplicationID),
 			zap.String("partitionName", app.PartitionName),
@@ -604,6 +607,7 @@ func (cc *ClusterContext) addNode(nodeInfo *si.NodeInfo, schedulable bool) error
 			zap.String("partitionName", sn.Partition))
 		return err
 	}
+	sn.PartitionID = partition.ID
 
 	err := partition.AddNode(sn)
 	sn.SendNodeAddedEvent()
