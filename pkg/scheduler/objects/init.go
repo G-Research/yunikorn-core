@@ -26,12 +26,12 @@ import (
 )
 
 var (
-	entropy *rand.Rand
-	ms      uint64
+	Entropy *rand.Rand
+	Ms      uint64
 )
 
 func init() {
-	entropy = rand.New(new(rand.LockedSource))
-	entropy.Seed(uint64(time.Now().UnixNano()))
-	ms = ulid.Timestamp(time.Now())
+	Entropy = rand.New(new(rand.LockedSource))
+	Entropy.Seed(uint64(time.Now().UnixNano()))
+	Ms = ulid.Timestamp(time.Now())
 }

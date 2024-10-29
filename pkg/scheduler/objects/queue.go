@@ -115,7 +115,7 @@ func (sq *Queue) daoSnapshot() string {
 
 // newBlankQueue creates a new empty queue objects with all values initialised.
 func newBlankQueue() *Queue {
-	id, _ := ulid.New(ms, entropy)
+	id, _ := ulid.New(Ms, Entropy)
 	return &Queue{
 		ID:                     id.String(),
 		children:               make(map[string]*Queue),

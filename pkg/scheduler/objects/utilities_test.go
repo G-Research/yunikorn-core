@@ -171,7 +171,7 @@ func newNodeRes(nodeID string, total *resources.Resource) *Node {
 }
 
 func newNodeInternal(nodeID string, total, occupied *resources.Resource) *Node {
-	id, _ := ulid.New(ms, entropy)
+	id, _ := ulid.New(Ms, Entropy)
 	sn := &Node{
 		ID:                id.String(),
 		NodeID:            nodeID,

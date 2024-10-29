@@ -2596,7 +2596,7 @@ func TestGetOutstandingRequests(t *testing.T) {
 	allocationAsk2.SetSchedulingAttempted(true)
 
 	// Create an Application instance
-	id, _ := ulid.New(ms, entropy)
+	id, _ := ulid.New(Ms, Entropy)
 	app := &Application{
 		ID:            id.String(),
 		ApplicationID: "app-1",
@@ -2661,7 +2661,7 @@ func TestGetOutstandingRequests_NoSchedulingAttempt(t *testing.T) {
 	allocationAsk2.SetSchedulingAttempted(true)
 	allocationAsk4.SetSchedulingAttempted(true)
 
-	id, _ := ulid.New(ms, entropy)
+	id, _ := ulid.New(Ms, Entropy)
 	app := &Application{
 		ID:            id.String(),
 		ApplicationID: "app-1",
@@ -2702,7 +2702,7 @@ func TestGetOutstandingRequests_RequestTriggeredPreemptionHasRequiredNode(t *tes
 	allocationAsk2.SetRequiredNode("node-1")
 	allocationAsk3.SetRequiredNode("node-1") // hasn't triggered scaling, has required node --> not selected
 
-	id, _ := ulid.New(ms, entropy)
+	id, _ := ulid.New(Ms, Entropy)
 	app := &Application{
 		ID:            id.String(),
 		ApplicationID: "app-1",
@@ -2736,7 +2736,7 @@ func TestGetOutstandingRequests_AskReplaceable(t *testing.T) {
 	allocationAsk1.taskGroupName = "testgroup"
 	allocationAsk2.taskGroupName = "testgroup"
 
-	id, _ := ulid.New(ms, entropy)
+	id, _ := ulid.New(Ms, Entropy)
 	app := &Application{
 		ID:            id.String(),
 		ApplicationID: "app-1",

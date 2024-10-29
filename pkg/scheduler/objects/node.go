@@ -112,7 +112,7 @@ func NewNode(proto *si.NodeInfo) *Node {
 		return nil
 	}
 
-	id, _ := ulid.New(ms, entropy)
+	id, _ := ulid.New(Ms, Entropy)
 	sn := &Node{
 		ID:                id.String(),
 		NodeID:            proto.NodeID,

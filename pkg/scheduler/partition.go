@@ -89,8 +89,10 @@ func newPartitionContext(conf configs.PartitionConfig, rmID string, cc *ClusterC
 			zap.Any("cluster context", cc))
 		return nil, fmt.Errorf("partition cannot be created without name or RM, one is not set")
 	}
+
+	id, _ := ulid.New(objects.Ms, objects.Entropy)
 	pc := &PartitionContext{
-		ID:                    ulid.Make().String(),
+		ID:                    id.String(),
 		Name:                  conf.Name,
 		RmID:                  rmID,
 		stateMachine:          objects.NewObjectState(),
