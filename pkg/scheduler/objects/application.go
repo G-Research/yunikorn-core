@@ -178,6 +178,10 @@ func (app *Application) dao() *dao.ApplicationDAOInfo {
 	resourceUsage := app.usedResource.Clone()
 	preemptedUsage := app.preemptedResource.Clone()
 	placeHolderUsage := app.placeholderResource.Clone()
+	var qID *string
+	if app.queue != nil {
+		qID = &app.queue.ID
+	}
 
 	return &dao.ApplicationDAOInfo{
 		ID:                  app.ID,
@@ -187,6 +191,7 @@ func (app *Application) dao() *dao.ApplicationDAOInfo {
 		PendingResource:     app.pending.Clone().DAOMap(),
 		Partition:           common.GetPartitionNameWithoutClusterID(app.Partition),
 		PartitionID:         app.PartitionID,
+		QueueID:             qID,
 		QueueName:           app.queuePath,
 		SubmissionTime:      app.SubmissionTime.UnixNano(),
 		FinishedTime:        common.ZeroTimeInUnixNano(app.finishedTime),
