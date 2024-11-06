@@ -2216,9 +2216,10 @@ func TestNewConfiguredQueue(t *testing.T) {
 			},
 		},
 	}
-	parent, err := NewConfiguredQueue(parentConfig, nil)
+	parent, err := NewConfiguredQueue(parentConfig, nil, "1")
 	assert.NilError(t, err, "failed to create queue: %v", err)
 	assert.Equal(t, parent.Name, "parent_queue")
+	assert.Equal(t, parent.PartitionID, "1")
 	assert.Equal(t, parent.QueuePath, "parent_queue")
 	assert.Equal(t, parent.isManaged, true)
 	assert.Equal(t, parent.maxRunningApps, uint64(32))
@@ -2236,9 +2237,10 @@ func TestNewConfiguredQueue(t *testing.T) {
 			Guaranteed: getResourceConf(),
 		},
 	}
-	childLeaf, err := NewConfiguredQueue(leafConfig, parent)
+	childLeaf, err := NewConfiguredQueue(leafConfig, parent, "")
 	assert.NilError(t, err, "failed to create queue: %v", err)
 	assert.Equal(t, childLeaf.QueuePath, "parent_queue.leaf_queue")
+	assert.Equal(t, childLeaf.PartitionID, parent.PartitionID)
 	assert.Assert(t, childLeaf.template == nil)
 	assert.Assert(t, reflect.DeepEqual(childLeaf.properties, leafConfig.Properties))
 	childLeafMax, err := resources.NewResourceFromConf(leafConfig.Resources.Max)
@@ -2253,9 +2255,10 @@ func TestNewConfiguredQueue(t *testing.T) {
 		Name:   "nonleaf_queue",
 		Parent: true,
 	}
-	childNonLeaf, err := NewConfiguredQueue(NonLeafConfig, parent)
+	childNonLeaf, err := NewConfiguredQueue(NonLeafConfig, parent, "")
 	assert.NilError(t, err, "failed to create queue: %v", err)
 	assert.Equal(t, childNonLeaf.QueuePath, "parent_queue.nonleaf_queue")
+	assert.Equal(t, childLeaf.PartitionID, parent.PartitionID)
 	assert.Assert(t, reflect.DeepEqual(childNonLeaf.template, parent.template))
 	assert.Equal(t, len(childNonLeaf.properties), 0)
 	assert.Assert(t, childNonLeaf.guaranteedResource == nil)
@@ -2309,8 +2312,9 @@ func TestNewRecoveryQueue(t *testing.T) {
 		Properties:    map[string]string{configs.ApplicationSortPolicy: "fair"},
 		ChildTemplate: configs.ChildTemplate{Properties: map[string]string{configs.ApplicationSortPolicy: "fair"}},
 	}
-	parent, err = NewConfiguredQueue(parentConfig, nil)
+	parent, err = NewConfiguredQueue(parentConfig, nil, "2")
 	assert.NilError(t, err, "failed to create queue: %v", err)
+	assert.Equal(t, parent.PartitionID, "2")
 	recoveryQueue, err := NewRecoveryQueue(parent)
 	assert.NilError(t, err, "failed to create recovery queue: %v", err)
 	assert.Equal(t, common.RecoveryQueueFull, recoveryQueue.GetQueuePath(), "wrong queue name")

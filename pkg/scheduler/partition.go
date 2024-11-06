@@ -120,7 +120,7 @@ func (pc *PartitionContext) initialPartitionFromConfig(conf configs.PartitionCon
 	// Add the rest of the queue structure recursively
 	queueConf := conf.Queues[0]
 	var err error
-	if pc.root, err = objects.NewConfiguredQueue(queueConf, nil); err != nil {
+	if pc.root, err = objects.NewConfiguredQueue(queueConf, nil, pc.ID); err != nil {
 		return err
 	}
 	pc.root.PartitionID = pc.ID
@@ -202,17 +202,18 @@ func (pc *PartitionContext) updatePartitionDetails(conf configs.PartitionConfig)
 func (pc *PartitionContext) addQueue(conf []configs.QueueConfig, parent *objects.Queue) error {
 	// create the queue at this level
 	for _, queueConf := range conf {
-		thisQueue, err := objects.NewConfiguredQueue(queueConf, parent)
+		thisQueue, err := objects.NewConfiguredQueue(queueConf, parent, pc.ID)
 		if err != nil {
 			return err
 		}
+		thisQueue.PartitionID = pc.ID
+
 		// recursive create the queues below
 		if len(queueConf.Queues) > 0 {
 			err = pc.addQueue(queueConf.Queues, thisQueue)
 			if err != nil {
 				return err
 			}
-			thisQueue.PartitionID = pc.ID
 		}
 	}
 	return nil
@@ -232,13 +233,15 @@ func (pc *PartitionContext) updateQueues(config []configs.QueueConfig, parent *o
 		queue := pc.getQueueInternal(pathName)
 		var err error
 		if queue == nil {
-			queue, err = objects.NewConfiguredQueue(queueConfig, parent)
+			queue, err = objects.NewConfiguredQueue(queueConfig, parent, pc.ID)
 		} else {
 			err = queue.ApplyConf(queueConfig)
 		}
 		if err != nil {
 			return err
 		}
+		queue.PartitionID = pc.ID
+
 		// special call to convert to a real policy from the property
 		queue.UpdateQueueProperties()
 		if err = pc.updateQueues(queueConfig.Queues, queue); err != nil {
