@@ -21,7 +21,6 @@ package objects
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -154,63 +153,6 @@ func (sa *Application) GetApplicationSummary(rmID string) *ApplicationSummary {
 		PlaceholderResource: placeHolderUsage,
 	}
 	return appSummary
-}
-
-func (sa *Application) daoSnapshot() string {
-	sa.snapshotLock.Lock()
-	defer sa.snapshotLock.Unlock()
-
-	if err := json.NewEncoder(&sa.snapshot).Encode(sa.dao()); err != nil {
-		// TODO: log error
-		return ""
-	}
-
-	val := sa.snapshot.String()
-	sa.snapshot.Reset()
-	return val
-}
-
-func (app *Application) dao() *dao.ApplicationDAOInfo {
-	if app == nil {
-		return &dao.ApplicationDAOInfo{}
-	}
-
-	resourceUsage := app.usedResource.Clone()
-	preemptedUsage := app.preemptedResource.Clone()
-	placeHolderUsage := app.placeholderResource.Clone()
-	var qID *string
-	if app.queue != nil {
-		qID = &app.queue.ID
-	}
-
-	return &dao.ApplicationDAOInfo{
-		ID:                  app.ID,
-		ApplicationID:       app.ApplicationID,
-		UsedResource:        app.allocatedResource.Clone().DAOMap(),
-		MaxUsedResource:     app.maxAllocatedResource.Clone().DAOMap(),
-		PendingResource:     app.pending.Clone().DAOMap(),
-		Partition:           common.GetPartitionNameWithoutClusterID(app.Partition),
-		PartitionID:         app.PartitionID,
-		QueueID:             qID,
-		QueueName:           app.queuePath,
-		SubmissionTime:      app.SubmissionTime.UnixNano(),
-		FinishedTime:        common.ZeroTimeInUnixNano(app.finishedTime),
-		Requests:            getAllocationAsksDAO(app.getAllRequestsInternal()),
-		Allocations:         getAllocationsDAO(app.getAllAllocations()),
-		State:               app.CurrentState(),
-		User:                app.user.User,
-		Groups:              app.user.Groups,
-		RejectedMessage:     app.rejectedMessage,
-		PlaceholderData:     getPlaceholdersDAO(app.getAllPlaceholderData()),
-		StateLog:            getStatesDAO(app.stateLog),
-		HasReserved:         len(app.reservations) > 0,
-		Reservations:        app.getReservations(),
-		MaxRequestPriority:  app.askMaxPriority,
-		StartTime:           app.startTime.UnixMilli(),
-		ResourceUsage:       resourceUsage,
-		PreemptedResource:   preemptedUsage,
-		PlaceholderResource: placeHolderUsage,
-	}
 }
 
 func NewApplication(siApp *si.AddApplicationRequest, ugi security.UserGroup, eventHandler handler.EventHandler, rmID string) *Application {

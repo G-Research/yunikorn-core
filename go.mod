@@ -19,10 +19,13 @@
 
 module github.com/G-Research/yunikorn-core
 
-go 1.21
+go 1.22
+
+toolchain go1.23.2
 
 require (
 	github.com/G-Research/yunikorn-scheduler-interface v0.0.0-20241010085204-da837381ae08
+	github.com/brianvoe/gofakeit/v7 v7.1.2
 	github.com/google/btree v1.1.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
@@ -33,6 +36,7 @@ require (
 	github.com/prometheus/client_model v0.5.0
 	github.com/prometheus/common v0.45.0
 	github.com/sasha-s/go-deadlock v0.3.5
+	github.com/stretchr/testify v1.8.1
 	go.uber.org/zap v1.26.0
 	golang.org/x/exp v0.0.0-20240409090435-93d18d7e34b8
 	golang.org/x/net v0.25.0
@@ -48,6 +52,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/sys v0.23.0 // indirect
