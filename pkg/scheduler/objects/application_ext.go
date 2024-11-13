@@ -79,3 +79,62 @@ func NewTestApplication(t *testing.T) *Application {
 	app.rmID = "rmid"
 	return &app
 }
+
+func (sa *Application) getReservations() []string {
+	keys := make([]string, 0)
+	for key := range sa.reservations {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func (sa *Application) getAllAllocations() []*Allocation {
+	var allocations []*Allocation
+	for _, alloc := range sa.allocations {
+		allocations = append(allocations, alloc)
+	}
+	return allocations
+}
+
+func (sa *Application) getAllPlaceholderData() []*PlaceholderData {
+	var placeholders []*PlaceholderData
+	for _, taskGroup := range sa.placeholderData {
+		placeholders = append(placeholders, taskGroup)
+	}
+	return placeholders
+}
+
+func getPlaceholdersDAO(entries []*PlaceholderData) []*dao.PlaceholderDAOInfo {
+	phsDAO := make([]*dao.PlaceholderDAOInfo, 0, len(entries))
+	for _, entry := range entries {
+		phsDAO = append(phsDAO, entry.DAO())
+	}
+	return phsDAO
+}
+
+func (ph *PlaceholderData) DAO() *dao.PlaceholderDAOInfo {
+	phDAO := &dao.PlaceholderDAOInfo{
+		TaskGroupName: ph.TaskGroupName,
+		Count:         ph.Count,
+		MinResource:   ph.MinResource.DAOMap(),
+		Replaced:      ph.Replaced,
+		TimedOut:      ph.TimedOut,
+	}
+	return phDAO
+}
+
+func getStatesDAO(entries []*StateLogEntry) []*dao.StateDAOInfo {
+	statesDAO := make([]*dao.StateDAOInfo, 0, len(entries))
+	for _, entry := range entries {
+		statesDAO = append(statesDAO, entry.DAO())
+	}
+	return statesDAO
+}
+
+func (entry *StateLogEntry) DAO() *dao.StateDAOInfo {
+	state := &dao.StateDAOInfo{
+		Time:             entry.Time.UnixNano(),
+		ApplicationState: entry.ApplicationState,
+	}
+	return state
+}

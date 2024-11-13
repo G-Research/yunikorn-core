@@ -44,7 +44,6 @@ import (
 	"github.com/G-Research/yunikorn-core/pkg/rmproxy/rmevent"
 	schedEvt "github.com/G-Research/yunikorn-core/pkg/scheduler/objects/events"
 	"github.com/G-Research/yunikorn-core/pkg/scheduler/ugm"
-	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
 	siCommon "github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
 	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 )
@@ -478,10 +477,6 @@ func (sa *Application) timeoutPlaceholderProcessing() {
 func (sa *Application) GetReservations() []string {
 	sa.RLock()
 	defer sa.RUnlock()
-	return sa.getReservations()
-}
-
-func (sa *Application) getReservations() []string {
 	keys := make([]string, 0)
 	for key := range sa.reservations {
 		keys = append(keys, key)
@@ -1688,14 +1683,6 @@ func (sa *Application) GetAllAllocations() []*Allocation {
 	return allocations
 }
 
-func (sa *Application) getAllAllocations() []*Allocation {
-	var allocations []*Allocation
-	for _, alloc := range sa.allocations {
-		allocations = append(allocations, alloc)
-	}
-	return allocations
-}
-
 // get a copy of all placeholder allocations of the application
 // No locking must be called while holding the lock
 func (sa *Application) getPlaceholderAllocations() []*Allocation {
@@ -2114,14 +2101,6 @@ func (sa *Application) GetAllPlaceholderData() []*PlaceholderData {
 	return placeholders
 }
 
-func (sa *Application) getAllPlaceholderData() []*PlaceholderData {
-	var placeholders []*PlaceholderData
-	for _, taskGroup := range sa.placeholderData {
-		placeholders = append(placeholders, taskGroup)
-	}
-	return placeholders
-}
-
 func (sa *Application) GetAskMaxPriority() int32 {
 	sa.RLock()
 	defer sa.RUnlock()
@@ -2275,39 +2254,4 @@ func (sa *Application) getResourceFromTags(tag string) *resources.Resource {
 	}
 
 	return resource
-}
-
-func getPlaceholdersDAO(entries []*PlaceholderData) []*dao.PlaceholderDAOInfo {
-	phsDAO := make([]*dao.PlaceholderDAOInfo, 0, len(entries))
-	for _, entry := range entries {
-		phsDAO = append(phsDAO, entry.DAO())
-	}
-	return phsDAO
-}
-
-func (ph *PlaceholderData) DAO() *dao.PlaceholderDAOInfo {
-	phDAO := &dao.PlaceholderDAOInfo{
-		TaskGroupName: ph.TaskGroupName,
-		Count:         ph.Count,
-		MinResource:   ph.MinResource.DAOMap(),
-		Replaced:      ph.Replaced,
-		TimedOut:      ph.TimedOut,
-	}
-	return phDAO
-}
-
-func getStatesDAO(entries []*StateLogEntry) []*dao.StateDAOInfo {
-	statesDAO := make([]*dao.StateDAOInfo, 0, len(entries))
-	for _, entry := range entries {
-		statesDAO = append(statesDAO, entry.DAO())
-	}
-	return statesDAO
-}
-
-func (entry *StateLogEntry) DAO() *dao.StateDAOInfo {
-	state := &dao.StateDAOInfo{
-		Time:             entry.Time.UnixNano(),
-		ApplicationState: entry.ApplicationState,
-	}
-	return state
 }

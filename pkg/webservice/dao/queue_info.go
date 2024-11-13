@@ -28,6 +28,7 @@ type PartitionQueueDAOInfo struct {
 	ID                     string                  `json:"id"`        // no omitempty, id should not be empty
 	QueueName              string                  `json:"queuename"` // no omitempty, queue name should not be empty
 	Status                 string                  `json:"status,omitempty"`
+	Partition              string                  `json:"partition"`    // no omitempty, queue name should not be empty
 	PartitionID            string                  `json:"partition_id"` // no omitempty, partition id should not be empty
 	PendingResource        map[string]int64        `json:"pendingResource,omitempty"`
 	MaxResource            map[string]int64        `json:"maxResource,omitempty"`

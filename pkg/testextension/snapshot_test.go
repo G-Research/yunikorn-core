@@ -14,3 +14,10 @@ func TestApplicationSnapshot(t *testing.T) {
 	got := app.DAO()
 	assert.DeepEqual(t, want, got)
 }
+
+func TestQueueSnapshot(t *testing.T) {
+	queue := objects.NewTestQueue(t)
+	want := queue.GetPartitionQueueDAOInfo(false)
+	got := queue.DAO(false)
+	assert.DeepEqual(t, want, got)
+}
