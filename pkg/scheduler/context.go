@@ -595,7 +595,6 @@ func (cc *ClusterContext) removePartition(partitionName string) {
 // nil nodeInfo objects must be filtered out before calling this function
 func (cc *ClusterContext) addNode(nodeInfo *si.NodeInfo, schedulable bool) error {
 	sn := objects.NewNode(nodeInfo)
-	sn.SetSchedulable(schedulable)
 
 	partition := cc.GetPartition(sn.Partition)
 	if partition == nil {
@@ -608,6 +607,8 @@ func (cc *ClusterContext) addNode(nodeInfo *si.NodeInfo, schedulable bool) error
 		return err
 	}
 	sn.PartitionID = partition.ID
+
+	sn.SetSchedulable(schedulable)
 
 	err := partition.AddNode(sn)
 	sn.SendNodeAddedEvent()
