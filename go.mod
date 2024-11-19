@@ -19,9 +19,7 @@
 
 module github.com/G-Research/yunikorn-core
 
-go 1.22
-
-toolchain go1.23.2
+go 1.23.2
 
 require (
 	github.com/G-Research/yunikorn-scheduler-interface v0.0.0-20241010085204-da837381ae08
@@ -36,7 +34,7 @@ require (
 	github.com/prometheus/client_model v0.5.0
 	github.com/prometheus/common v0.45.0
 	github.com/sasha-s/go-deadlock v0.3.5
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.26.0
 	golang.org/x/exp v0.0.0-20240409090435-93d18d7e34b8
 	golang.org/x/net v0.25.0
