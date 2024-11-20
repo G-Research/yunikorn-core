@@ -68,7 +68,7 @@ func doStateDump(w io.Writer) error {
 	records := imHistory.GetRecords()
 	zapConfig := yunikornLog.GetZapConfigs()
 
-	var aggregated = AggregatedStateInfo{
+	aggregated := AggregatedStateInfo{
 		Timestamp:        time.Now().UnixNano(),
 		Partitions:       getPartitionInfoDAO(partitionContext),
 		Applications:     getApplicationsDAO(partitionContext),

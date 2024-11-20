@@ -42,15 +42,8 @@ func (n *NodeEvents) SendNodeRemovedEvent(nodeID string, state string) {
 	if !n.eventSystem.IsEventTrackingEnabled() {
 		return
 	}
-	event := events.CreateNodeEventRecord(
-		nodeID,
-		"Node removed from the scheduler",
-		common.Empty,
-		si.EventRecord_REMOVE,
-		si.EventRecord_NODE_DECOMISSION,
-		nil,
-		state,
-	)
+	event := events.CreateNodeEventRecord(nodeID, "Node removed from the scheduler", common.Empty, si.EventRecord_REMOVE,
+		si.EventRecord_NODE_DECOMISSION, nil, state)
 	n.eventSystem.AddEvent(event)
 }
 

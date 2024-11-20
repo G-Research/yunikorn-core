@@ -21,7 +21,6 @@ package objects
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -47,9 +46,7 @@ import (
 	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
 )
 
-var (
-	maxPreemptionsPerQueue = 10 // maximum number of asks to attempt to preempt for in a single queue
-)
+var maxPreemptionsPerQueue = 10 // maximum number of asks to attempt to preempt for in a single queue
 
 // Queue structure inside Scheduler
 type Queue struct {
@@ -98,19 +95,6 @@ type Queue struct {
 	snapshot     bytes.Buffer
 
 	locking.RWMutex
-}
-
-func (sq *Queue) daoSnapshot() string {
-	sq.snapshotLock.Lock()
-	defer sq.snapshotLock.Unlock()
-
-	if err := json.NewEncoder(&sq.snapshot).Encode(sq.getPartitionQueueDAOInfo(false)); err != nil {
-		// TODO: log error
-		return ""
-	}
-	val := sq.snapshot.String()
-	sq.snapshot.Reset()
-	return val
 }
 
 // newBlankQueue creates a new empty queue objects with all values initialised.
@@ -701,60 +685,10 @@ func (sq *Queue) GetPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 		}
 	}
 	// we have held the read lock so following method should not take lock again.
-	queueInfo.HeadRoom = sq.getHeadRoomLocked().DAOMap()
+	queueInfo.HeadRoom = sq.getHeadRoom().DAOMap()
 	sq.RLock()
 	defer sq.RUnlock()
 
-	for _, child := range children {
-		queueInfo.ChildNames = append(queueInfo.ChildNames, child.QueuePath)
-	}
-	queueInfo.ID = sq.ID
-	queueInfo.QueueName = sq.QueuePath
-	queueInfo.PartitionID = sq.PartitionID
-	queueInfo.Status = sq.stateMachine.Current()
-	queueInfo.PendingResource = sq.pending.DAOMap()
-	queueInfo.MaxResource = sq.maxResource.DAOMap()
-	queueInfo.GuaranteedResource = sq.guaranteedResource.DAOMap()
-	queueInfo.AllocatedResource = sq.allocatedResource.DAOMap()
-	queueInfo.PreemptingResource = sq.preemptingResource.DAOMap()
-	queueInfo.IsLeaf = sq.isLeaf
-	queueInfo.IsManaged = sq.isManaged
-	queueInfo.CurrentPriority = sq.getCurrentPriority()
-	queueInfo.TemplateInfo = sq.template.GetTemplateInfo()
-	queueInfo.AbsUsedCapacity = resources.CalculateAbsUsedCapacity(sq.maxResource, sq.allocatedResource).DAOMap()
-	queueInfo.Properties = make(map[string]string)
-	for k, v := range sq.properties {
-		queueInfo.Properties[k] = v
-	}
-	if sq.parent == nil {
-		queueInfo.Parent = ""
-	} else {
-		queueInfo.Parent = sq.QueuePath[:strings.LastIndex(sq.QueuePath, configs.DOT)]
-		parentID := sq.parent.ID
-		queueInfo.ParentID = &parentID
-	}
-	queueInfo.MaxRunningApps = sq.maxRunningApps
-	queueInfo.RunningApps = sq.runningApps
-	queueInfo.AllocatingAcceptedApps = make([]string, 0)
-	for appID, result := range sq.allocatingAcceptedApps {
-		if result {
-			queueInfo.AllocatingAcceptedApps = append(queueInfo.AllocatingAcceptedApps, appID)
-		}
-	}
-	return queueInfo
-}
-
-func (sq *Queue) getPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInfo {
-	queueInfo := dao.PartitionQueueDAOInfo{}
-	children := sq.getCopyOfChildren()
-	if include {
-		queueInfo.Children = make([]dao.PartitionQueueDAOInfo, 0, len(children))
-		for _, child := range children {
-			queueInfo.Children = append(queueInfo.Children, child.getPartitionQueueDAOInfo(true))
-		}
-	}
-	// we have held the read lock so following method should not take lock again.
-	queueInfo.HeadRoom = sq.getHeadRoom().DAOMap()
 	for _, child := range children {
 		queueInfo.ChildNames = append(queueInfo.ChildNames, child.QueuePath)
 	}
@@ -777,7 +711,9 @@ func (sq *Queue) getPartitionQueueDAOInfo(include bool) dao.PartitionQueueDAOInf
 	for k, v := range sq.properties {
 		queueInfo.Properties[k] = v
 	}
-	if sq.parent != nil {
+	if sq.parent == nil {
+		queueInfo.Parent = ""
+	} else {
 		queueInfo.Parent = sq.QueuePath[:strings.LastIndex(sq.QueuePath, configs.DOT)]
 		parentID := sq.parent.ID
 		queueInfo.ParentID = &parentID
@@ -936,10 +872,6 @@ func (sq *Queue) GetCopyOfApps() map[string]*Application {
 func (sq *Queue) GetCopyOfChildren() map[string]*Queue {
 	sq.RLock()
 	defer sq.RUnlock()
-	return sq.getCopyOfChildren()
-}
-
-func (sq *Queue) getCopyOfChildren() map[string]*Queue {
 	childCopy := make(map[string]*Queue)
 	for k, v := range sq.children {
 		childCopy[k] = v
@@ -1298,14 +1230,6 @@ func (sq *Queue) sortQueues() []*Queue {
 // In case there are no nodes in a newly started cluster and no queues have a limit configured this call
 // will return nil.
 // NOTE: if a resource quantity is missing and a limit is defined the missing quantity will be seen as no limit.
-func (sq *Queue) getHeadRoomLocked() *resources.Resource {
-	var parentHeadRoom *resources.Resource
-	if sq.parent != nil {
-		parentHeadRoom = sq.parent.getHeadRoomLocked()
-	}
-	return sq.internalHeadRoomLocked(parentHeadRoom)
-}
-
 func (sq *Queue) getHeadRoom() *resources.Resource {
 	var parentHeadRoom *resources.Resource
 	if sq.parent != nil {
@@ -1325,17 +1249,13 @@ func (sq *Queue) getMaxHeadRoom() *resources.Resource {
 	} else {
 		return nil
 	}
-	return sq.internalHeadRoomLocked(parentHeadRoom)
-}
-
-// internalHeadRoom does the real headroom calculation.
-func (sq *Queue) internalHeadRoomLocked(parentHeadRoom *resources.Resource) *resources.Resource {
-	sq.RLock()
-	defer sq.RUnlock()
 	return sq.internalHeadRoom(parentHeadRoom)
 }
 
+// internalHeadRoom does the real headroom calculation.
 func (sq *Queue) internalHeadRoom(parentHeadRoom *resources.Resource) *resources.Resource {
+	sq.RLock()
+	defer sq.RUnlock()
 	headRoom := sq.maxResource
 
 	// if we have no max set headroom is always the same as the parent

@@ -20,7 +20,6 @@ package objects
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -32,7 +31,6 @@ import (
 	"github.com/G-Research/yunikorn-core/pkg/log"
 	"github.com/G-Research/yunikorn-core/pkg/plugins"
 	schedEvt "github.com/G-Research/yunikorn-core/pkg/scheduler/objects/events"
-	"github.com/G-Research/yunikorn-core/pkg/webservice/dao"
 	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/common"
 	"github.com/G-Research/yunikorn-scheduler-interface/lib/go/si"
 	"github.com/oklog/ulid/v2"
@@ -69,41 +67,6 @@ type Node struct {
 	snapshot     bytes.Buffer
 
 	locking.RWMutex
-}
-
-func (node *Node) dao() *dao.NodeDAOInfo {
-	return &dao.NodeDAOInfo{
-		ID:                 node.ID,
-		NodeID:             node.NodeID,
-		HostName:           node.Hostname,
-		RackName:           node.Rackname,
-		Partition:          node.Partition,
-		PartitionID:        node.PartitionID,
-		Attributes:         node.GetAttributes(),
-		Capacity:           node.totalResource.Clone().DAOMap(),
-		Occupied:           node.occupiedResource.Clone().DAOMap(),
-		Allocated:          node.allocatedResource.Clone().DAOMap(),
-		Available:          node.availableResource.Clone().DAOMap(),
-		Utilized:           node.getUtilizedResource().DAOMap(),
-		Allocations:        getAllocationsDAO(node.getAllocations(false)),
-		ForeignAllocations: getForeignAllocationsDAO(node.getAllocations(true)),
-		Schedulable:        node.schedulable,
-		IsReserved:         len(node.reservations) > 0,
-		Reservations:       node.getReservationKeys(),
-	}
-}
-
-func (node *Node) daoSnapshot() string {
-	node.snapshotLock.Lock()
-	defer node.snapshotLock.Unlock()
-
-	if err := json.NewEncoder(&node.snapshot).Encode(node.dao()); err != nil {
-		// TODO: handle error
-		return ""
-	}
-	val := node.snapshot.String()
-	node.snapshot.Reset()
-	return val
 }
 
 func NewNode(proto *si.NodeInfo) *Node {
@@ -189,14 +152,6 @@ func (sn *Node) GetInstanceType() string {
 func (sn *Node) GetReservationKeys() []string {
 	sn.RLock()
 	defer sn.RUnlock()
-	keys := make([]string, 0)
-	for key := range sn.reservations {
-		keys = append(keys, key)
-	}
-	return keys
-}
-
-func (sn *Node) getReservationKeys() []string {
 	keys := make([]string, 0)
 	for key := range sn.reservations {
 		keys = append(keys, key)
@@ -354,20 +309,6 @@ func (sn *Node) GetFitInScoreForAvailableResource(res *resources.Resource) float
 func (sn *Node) GetUtilizedResource() *resources.Resource {
 	total := sn.GetCapacity()
 	resourceAllocated := sn.GetAllocatedResource()
-	utilizedResource := make(map[string]resources.Quantity)
-
-	for name := range resourceAllocated.Resources {
-		if total.Resources[name] > 0 {
-			utilizedResource[name] = resources.CalculateAbsUsedCapacity(total, resourceAllocated).Resources[name]
-		}
-	}
-	return &resources.Resource{Resources: utilizedResource}
-}
-
-// Get the utilized resource on this node.
-func (sn *Node) getUtilizedResource() *resources.Resource {
-	total := sn.totalResource.Clone()
-	resourceAllocated := sn.allocatedResource.Clone()
 	utilizedResource := make(map[string]resources.Quantity)
 
 	for name := range resourceAllocated.Resources {
