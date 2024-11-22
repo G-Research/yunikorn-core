@@ -21,9 +21,6 @@ enhancements and fixes, with minimal behavioral differences.
 now has a `state` member, which is a string holding a JSON-encoded representation of the the
 last state of a Yunikorn scheduler object.
 
-- The various `Create{Queue,App,Request,...}EventRecord()` funcs now have `state` (of type *string*)
-as additional required parameter.
-
 - The scheduler objects (in pkg/scheduler/objects/) `Application`, `Queue`, `Node`, and `PartitionContext`
 all now have a `ID` member, which is a string containing a formatted ULID (https://github.com/oklog/ulid)
 value. Every individual object has a distinct ID value, generated at the object's creation time.
@@ -36,13 +33,6 @@ identify which queue the application was deployed into.
 
 - The `PartitionQueueDAOInfo` object now has a `ParentID *string` field, which contains the `ID`
 value of that queue's parent queue. If it is the root queue, this field will be *nil*.
-
-- The Allocation scheduler object now has two new methods for getting external DAO representations of 
-the Allocation and affiliated Allocation Asks:
-```
-  func (alloc *Allocation) DAO() *dao.AllocationDAOInfo
-  func (a *Allocation) AskDAO() *dao.AllocationAskDAOInfo
-```
 
 - During publishing of events for object creation/modification, a snapshot of the DAO representation
 of the object is created and stored in the `state` member of the generated DAO.
