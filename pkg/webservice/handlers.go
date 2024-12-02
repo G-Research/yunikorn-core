@@ -334,6 +334,7 @@ func getApplicationDAO(app *objects.Application, summary *objects.ApplicationSum
 		Partition:           common.GetPartitionNameWithoutClusterID(app.Partition),
 		PartitionID:         app.PartitionID,
 		QueueName:           app.GetQueuePath(),
+		QueueID:             app.DAO().QueueID,
 		SubmissionTime:      app.SubmissionTime.UnixNano(),
 		FinishedTime:        common.ZeroTimeInUnixNano(app.FinishedTime()),
 		Requests:            getAllocationAsksDAO(app.GetAllRequests()),
