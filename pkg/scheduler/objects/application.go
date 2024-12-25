@@ -1765,8 +1765,8 @@ func (sa *Application) addAllocationInternal(allocType AllocationResultType, all
 		sa.allocatedResource = resources.Add(sa.allocatedResource, alloc.GetAllocatedResource())
 		sa.maxAllocatedResource = resources.ComponentWiseMax(sa.allocatedResource, sa.maxAllocatedResource)
 	}
-	sa.appEvents.SendNewAllocationEvent(sa.ApplicationID, alloc.allocationKey, alloc.GetAllocatedResource(), sa.daoSnapshot())
 	sa.allocations[alloc.GetAllocationKey()] = alloc
+	sa.appEvents.SendNewAllocationEvent(sa.ApplicationID, alloc.allocationKey, alloc.GetAllocatedResource(), sa.daoSnapshot())
 }
 
 // Increase user resource usage
