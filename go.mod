@@ -17,12 +17,11 @@
 // under the License.
 //
 
-module github.com/apache/yunikorn-core
+module github.com/G-Research/yunikorn-core
 
 go 1.23.2
 
 require (
-	github.com/G-Research/yunikorn-core v1.6.0-gr0
 	github.com/G-Research/yunikorn-scheduler-interface v1.6.0-gr0
 	github.com/brianvoe/gofakeit/v7 v7.1.2
 	github.com/google/btree v1.1.2

@@ -1,5 +1,3 @@
-github.com/G-Research/yunikorn-core v1.6.0-gr0 h1:SulNVO4GBbZny5DnSMy50MUSUSxfZo8avbOfRfoK23E=
-github.com/G-Research/yunikorn-core v1.6.0-gr0/go.mod h1:91B5DZaf9g2j4PBZijOjHGCpAcdGIj/hXPlF2+2jpH8=
 github.com/G-Research/yunikorn-scheduler-interface v1.6.0-gr0 h1:cSI0/63QTiU6PcUHGh9iGRc2kMbvU86D+GGfLdrYsCw=
 github.com/G-Research/yunikorn-scheduler-interface v1.6.0-gr0/go.mod h1:FQMPzj6bVpw0SLjDxVSdbp8DaQGeUrVD4WdxyI3go9Q=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
