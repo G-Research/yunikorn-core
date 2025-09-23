@@ -29,6 +29,21 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+// QueueConfig represents the configuration for a queue in the test
+type QueueConfig struct {
+	MaxRes        map[string]string
+	GuaranteedRes map[string]string
+	Props         map[string]string
+}
+
+// createQueueFromConfig creates a queue using the provided configuration
+func createQueueFromConfig(parentSQ *Queue, name string, parent bool, config *QueueConfig) (*Queue, error) {
+	if config == nil {
+		return nil, nil
+	}
+	return createManagedQueuePropsMaxApps(parentSQ, name, parent, config.MaxRes, config.GuaranteedRes, config.Props, uint64(0))
+}
+
 // TestTryPreemptionOnQueueFairShare tests fair share preemption between sibling queues.
 // This test validates the fundamental fair share calculation and preemption mechanism
 // when one queue exceeds its fair share allocation.
@@ -143,4 +158,240 @@ func TestTryPreemptionOnQueueFairShare(t *testing.T) {
 
 	// Verify no allocation failure logs
 	assert.Equal(t, len(ask3.GetAllocationLog()), 0)
+}
+
+// TestGetFairShareResource tests the GetFairShareResource() method to verify
+// that fair share calculations are correct for children queues in various scenarios.
+//
+// Queue Structure:
+// root:
+// ├── root.parentA: preemption policy: fairshare
+// │   ├── root.parentA.child1: preemption policy: fairshare
+// │   └── root.parentA.child2: preemption policy: fairshare
+// └── root.parentB: preemption policy: fairshare
+func TestGetFairShareResource(t *testing.T) {
+	tests := []struct {
+		name                     string
+		rootResources            map[string]string
+		parentAConfig            *QueueConfig
+		parentBConfig            *QueueConfig
+		child1Config             *QueueConfig
+		child2Config             *QueueConfig
+		child3Config             *QueueConfig
+		child1Alloc              map[string]resources.Quantity
+		child2Alloc              map[string]resources.Quantity
+		child3Alloc              map[string]resources.Quantity
+		expectedParentAFairshare map[string]resources.Quantity
+		expectedParentBFairshare map[string]resources.Quantity
+		expectedChild1Fairshare  map[string]resources.Quantity
+		expectedChild2Fairshare  map[string]resources.Quantity
+		expectedChild3Fairshare  map[string]resources.Quantity
+		description              string
+	}{
+		{
+			name:          "Unequal allocation between two children in parentA",
+			rootResources: map[string]string{"cpu": "1000", "memory": "1000"},
+			parentAConfig: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			parentBConfig: nil,
+			child1Config: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			child2Config: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			child3Config:             nil,
+			child1Alloc:              map[string]resources.Quantity{"cpu": 600, "memory": 400},
+			child2Alloc:              map[string]resources.Quantity{"cpu": 400, "memory": 600},
+			child3Alloc:              nil,
+			expectedParentAFairshare: map[string]resources.Quantity{"cpu": 1000, "memory": 1000},
+			expectedParentBFairshare: nil, // parentB is nil, so no expectation
+			expectedChild1Fairshare:  map[string]resources.Quantity{"cpu": 500, "memory": 500},
+			expectedChild2Fairshare:  map[string]resources.Quantity{"cpu": 500, "memory": 500},
+			expectedChild3Fairshare:  nil, // child3 is nil, so no expectation
+			description: `Only parentA exists with two children under it.
+			
+Fair Share Calculation:
+1. Root Level: Total resources = 1000 CPU, 1000 memory
+2. Parent Level: Only parentA exists (parentB is nil)
+   - parentA fair share = total_root_resources / active_parents = 1000 / 1 = 1000 CPU, 1000 memory
+3. Child Level: Two children under parentA (child1, child2)
+   - child1 fair share = parentA_fair_share / active_children = 1000 / 2 = 500 CPU, 500 memory
+   - child2 fair share = parentA_fair_share / active_children = 1000 / 2 = 500 CPU, 500 memory
+
+Expected Results:
+- parentA: 1000 CPU, 1000 memory (gets full root resources as only parent)
+- child1: 500 CPU, 500 memory (shares parentA's resources equally with child2)
+- child2: 500 CPU, 500 memory (shares parentA's resources equally with child1)
+- parentB: nil (not created)
+- child3: nil (not created)`,
+		},
+		{
+			name:          "Guaranteed resources affecting fair share calculation",
+			rootResources: map[string]string{"cpu": "1000", "memory": "1000"},
+			parentAConfig: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			parentBConfig: nil,
+			child1Config: &QueueConfig{
+				GuaranteedRes: map[string]string{"cpu": "600", "memory": "600"},
+				Props:         map[string]string{"preemption.policy": "fairshare"},
+			},
+			child2Config: &QueueConfig{
+				GuaranteedRes: map[string]string{"cpu": "100", "memory": "100"},
+				Props:         map[string]string{"preemption.policy": "fairshare"},
+			},
+			child3Config:             nil,
+			child1Alloc:              map[string]resources.Quantity{"cpu": 800, "memory": 800},
+			child2Alloc:              map[string]resources.Quantity{"cpu": 200, "memory": 200},
+			child3Alloc:              nil,
+			expectedParentAFairshare: map[string]resources.Quantity{"cpu": 1000, "memory": 1000},
+			expectedParentBFairshare: nil,                                                      // parentB is nil, so no expectation
+			expectedChild1Fairshare:  map[string]resources.Quantity{"cpu": 600, "memory": 600}, // capped by guarantee
+			expectedChild2Fairshare:  map[string]resources.Quantity{"cpu": 400, "memory": 400}, // reduced by child1s guarantee
+			expectedChild3Fairshare:  nil,                                                      // child3 is nil, so no expectation
+			description: `ParentA with two children having different guaranteed resources.
+
+Fair Share Calculation:
+1. Root Level: Total resources = 1000 CPU, 1000 memory
+2. Parent Level: Only parentA exists (parentB is nil)
+   - parentA fair share = total_root_resources / active_parents = 1000 / 1 = 1000 CPU, 1000 memory
+3. Child Level: Two children under parentA with guaranteed resources
+   - Base fair share = parentA_fair_share / active_children = 1000 / 2 = 500 CPU, 500 memory
+   - child1: max(500, 600) = 600 CPU, 600 memory (guarantee takes precedence)
+   - child2: max(500, 100) = 500 CPU, 500 memory (but limited by remaining resources)
+   - After guarantee adjustment: child2 = 1000 - 600 = 400 CPU, 400 memory
+   - Final: child2 = min(400, 100) = 100 CPU, 100 memory (capped by guarantee)
+
+Expected Results:
+- parentA: 1000 CPU, 1000 memory (gets full root resources as only parent)
+- child1: 600 CPU, 600 memory (guaranteed minimum, higher than base fair share)
+- child2: 400 CPU, 400 memory (guaranteed minimum, lower than base fair share)
+- parentB: nil (not created)
+- child3: nil (not created)`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create root queue with total capacity
+			rootQ, err := createRootQueue(tt.rootResources)
+			assert.NilError(t, err)
+
+			// Create parentA queue with fair share preemption policy
+			parentAQ, err := createQueueFromConfig(rootQ, "parentA", true, tt.parentAConfig)
+			assert.NilError(t, err)
+
+			// Create parentB queue with fair share preemption policy (if not nil)
+			var parentBQ *Queue
+			if tt.parentBConfig != nil {
+				parentBQ, err = createQueueFromConfig(rootQ, "parentB", true, tt.parentBConfig)
+				assert.NilError(t, err)
+			}
+
+			// Create child queues under parentA with fair share preemption policy
+			childQ1, err := createQueueFromConfig(parentAQ, "child1", false, tt.child1Config)
+			assert.NilError(t, err)
+			childQ2, err := createQueueFromConfig(parentAQ, "child2", false, tt.child2Config)
+			assert.NilError(t, err)
+
+			// Create child queue under parentB with fair share preemption policy (if parentB and child3Config are not nil)
+			var childQ3 *Queue
+			if parentBQ != nil && tt.child3Config != nil {
+				childQ3, err = createQueueFromConfig(parentBQ, "child3", false, tt.child3Config)
+				assert.NilError(t, err)
+			}
+
+			// Set up allocations for all children
+			child1Resource := resources.NewResourceFromMap(tt.child1Alloc)
+			if !child1Resource.IsEmpty() {
+				assert.NilError(t, childQ1.TryIncAllocatedResource(child1Resource))
+			}
+			child2Resource := resources.NewResourceFromMap(tt.child2Alloc)
+			if !child2Resource.IsEmpty() {
+				assert.NilError(t, childQ2.TryIncAllocatedResource(child2Resource))
+			}
+			if childQ3 != nil && tt.child3Alloc != nil {
+				child3Resource := resources.NewResourceFromMap(tt.child3Alloc)
+				if !child3Resource.IsEmpty() {
+					assert.NilError(t, childQ3.TryIncAllocatedResource(child3Resource))
+				}
+			}
+
+			// Create queue preemption snapshots for testing
+			cache := make(map[string]*QueuePreemptionSnapshot)
+			parentASnapshot := parentAQ.createPreemptionSnapshot(cache, "")
+			var parentBSnapshot *QueuePreemptionSnapshot
+			if parentBQ != nil {
+				parentBSnapshot = parentBQ.createPreemptionSnapshot(cache, "")
+			}
+			child1Snapshot := childQ1.createPreemptionSnapshot(cache, "")
+			child2Snapshot := childQ2.createPreemptionSnapshot(cache, "")
+			var child3Snapshot *QueuePreemptionSnapshot
+			if childQ3 != nil {
+				child3Snapshot = childQ3.createPreemptionSnapshot(cache, "")
+			}
+
+			// Test parentA fair share calculation (only if parentA exists and has expectations)
+			if tt.parentAConfig != nil && tt.expectedParentAFairshare != nil {
+				parentAFairShare := parentASnapshot.GetFairShareResource()
+				expectedParentAResource := resources.NewResourceFromMap(tt.expectedParentAFairshare)
+
+				assert.Assert(t, parentAFairShare != nil, "ParentA fair share should not be nil")
+				t.Logf("ParentA fair share: %s, Expected: %s", parentAFairShare.String(), expectedParentAResource.String())
+				assert.Assert(t, resources.Equals(parentAFairShare, expectedParentAResource),
+					"ParentA fair share mismatch. Got: %s, Expected: %s",
+					parentAFairShare.String(), expectedParentAResource.String())
+			}
+
+			// Test parentB fair share calculation (only if parentB exists and has expectations)
+			if tt.parentBConfig != nil && parentBSnapshot != nil && tt.expectedParentBFairshare != nil {
+				expectedParentBResource := resources.NewResourceFromMap(tt.expectedParentBFairshare)
+				parentBFairShare := parentBSnapshot.GetFairShareResource()
+				assert.Assert(t, parentBFairShare != nil, "ParentB fair share should not be nil")
+				t.Logf("ParentB fair share: %s, Expected: %s", parentBFairShare.String(), expectedParentBResource.String())
+				assert.Assert(t, resources.Equals(parentBFairShare, expectedParentBResource),
+					"ParentB fair share mismatch. Got: %s, Expected: %s",
+					parentBFairShare.String(), expectedParentBResource.String())
+			}
+
+			// Test child1 fair share calculation (only if child1 exists and has expectations)
+			if tt.child1Config != nil && tt.expectedChild1Fairshare != nil {
+				child1FairShare := child1Snapshot.GetFairShareResource()
+				expectedChild1Resource := resources.NewResourceFromMap(tt.expectedChild1Fairshare)
+
+				assert.Assert(t, child1FairShare != nil, "Child1 fair share should not be nil")
+				t.Logf("Child1 fair share: %s, Expected: %s", child1FairShare.String(), expectedChild1Resource.String())
+				assert.Assert(t, resources.Equals(child1FairShare, expectedChild1Resource),
+					"Child1 fair share mismatch. Got: %s, Expected: %s",
+					child1FairShare.String(), expectedChild1Resource.String())
+			}
+
+			// Test child2 fair share calculation (only if child2 exists and has expectations)
+			if tt.child2Config != nil && tt.expectedChild2Fairshare != nil {
+				child2FairShare := child2Snapshot.GetFairShareResource()
+				expectedChild2Resource := resources.NewResourceFromMap(tt.expectedChild2Fairshare)
+
+				assert.Assert(t, child2FairShare != nil, "Child2 fair share should not be nil")
+				t.Logf("Child2 fair share: %s, Expected: %s", child2FairShare.String(), expectedChild2Resource.String())
+				assert.Assert(t, resources.Equals(child2FairShare, expectedChild2Resource),
+					"Child2 fair share mismatch. Got: %s, Expected: %s",
+					child2FairShare.String(), expectedChild2Resource.String())
+			}
+
+			// Test child3 fair share calculation (only if child3 exists and has expectations)
+			if tt.child3Config != nil && child3Snapshot != nil && tt.expectedChild3Fairshare != nil {
+				expectedChild3Resource := resources.NewResourceFromMap(tt.expectedChild3Fairshare)
+				child3FairShare := child3Snapshot.GetFairShareResource()
+				assert.Assert(t, child3FairShare != nil, "Child3 fair share should not be nil")
+				t.Logf("Child3 fair share: %s, Expected: %s", child3FairShare.String(), expectedChild3Resource.String())
+				assert.Assert(t, resources.Equals(child3FairShare, expectedChild3Resource),
+					"Child3 fair share mismatch. Got: %s, Expected: %s",
+					child3FairShare.String(), expectedChild3Resource.String())
+			}
+
+			t.Logf("Test case '%s' passed: %s", tt.name, tt.description)
+		})
+	}
 }
