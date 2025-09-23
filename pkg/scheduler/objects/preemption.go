@@ -290,6 +290,10 @@ func (p *Preemptor) calculateVictimsByNode(nodeAvailable *resources.Resource, po
 					}
 
 					// Did adding this allocation make the ask queue over - utilized?
+					// Note: Some resources don't go negative, so if we use StrictlyGreaterThan() then preemption does
+					// does not happen. There might be problem when I merged the resource map while calculating
+					// remaining, used etc.. need to check. I used {Sub/Add}Existing though, should not have merged
+					// unnecessary resources.
 					if askQueueNewRemaining != nil && askQueueNewRemaining.HasNegativeValue() {
 						askQueue.RemoveAllocation(victim.GetAllocatedResource())
 						queueSnapshot.AddAllocation(victim.GetAllocatedResource())
