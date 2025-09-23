@@ -349,6 +349,53 @@ Expected Results:
 - parentA: 1000 CPU, 1000 memory
 - child1: 1000 CPU, 1000 memory (only active child)`,
 		},
+		{
+			name:          "Both parent queues active with children",
+			rootResources: map[string]string{"cpu": "1000", "memory": "1000"},
+			parentAConfig: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			parentBConfig: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			child1Config: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			child2Config: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			child3Config: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			child1Alloc:              map[string]resources.Quantity{"cpu": 300, "memory": 300},
+			child2Alloc:              map[string]resources.Quantity{"cpu": 200, "memory": 200},
+			child3Alloc:              map[string]resources.Quantity{"cpu": 500, "memory": 500},
+			expectedParentAFairshare: map[string]resources.Quantity{"cpu": 500, "memory": 500}, // 1000/2 parents
+			expectedParentBFairshare: map[string]resources.Quantity{"cpu": 500, "memory": 500}, // 1000/2 parents
+			expectedChild1Fairshare:  map[string]resources.Quantity{"cpu": 250, "memory": 250}, // 500/2 children
+			expectedChild2Fairshare:  map[string]resources.Quantity{"cpu": 250, "memory": 250}, // 500/2 children
+			expectedChild3Fairshare:  map[string]resources.Quantity{"cpu": 500, "memory": 500}, // 500/1 child
+			description: `Test both parent queues active with children.
+		
+Fair Share Calculation:
+1. Root Level: Total resources = 1000 CPU, 1000 memory
+2. Parent Level: Both parentA and parentB are active
+	- parentA fair share = 1000 / 2 = 500 CPU, 500 memory
+	- parentB fair share = 1000 / 2 = 500 CPU, 500 memory
+3. Child Level: 
+	- parentA has 2 active children: child1, child2
+		- child1 fair share = 500 / 2 = 250 CPU, 250 memory
+		- child2 fair share = 500 / 2 = 250 CPU, 250 memory
+	- parentB has 1 active child: child3
+		- child3 fair share = 500 / 1 = 500 CPU, 500 memory
+
+Expected Results:
+- parentA: 500 CPU, 500 memory (half of root)
+- parentB: 500 CPU, 500 memory (half of root)
+- child1: 250 CPU, 250 memory (half of parentA)
+- child2: 250 CPU, 250 memory (half of parentA)
+- child3: 500 CPU, 500 memory (all of parentB)`,
+		},
 	}
 
 	for _, tt := range tests {
