@@ -271,6 +271,84 @@ Expected Results:
 - parentB: nil (not created)
 - child3: nil (not created)`,
 		},
+		{
+			name:          "Max resources limiting fair share calculation",
+			rootResources: map[string]string{"cpu": "1000", "memory": "1000"},
+			parentAConfig: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			parentBConfig: nil,
+			child1Config: &QueueConfig{
+				MaxRes: map[string]string{"cpu": "300", "memory": "300"}, // Max limit
+				Props:  map[string]string{"preemption.policy": "fairshare"},
+			},
+			child2Config: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			child3Config:             nil,
+			child1Alloc:              map[string]resources.Quantity{"cpu": 300, "memory": 300},
+			child2Alloc:              map[string]resources.Quantity{"cpu": 700, "memory": 700},
+			child3Alloc:              nil,
+			expectedParentAFairshare: map[string]resources.Quantity{"cpu": 1000, "memory": 1000}, // Based on total child allocation
+			expectedParentBFairshare: nil,
+			expectedChild1Fairshare:  map[string]resources.Quantity{"cpu": 300, "memory": 300}, // Capped by max
+			// This is a current limitation where child2 gets base fair share instead of remaining resources.
+			// Better fair share logic would allocate remaining resources after capping child1.
+			// For example, child2 should get 700 (1000 - 300) instead of 500 (base fair share).
+			expectedChild2Fairshare: map[string]resources.Quantity{"cpu": 500, "memory": 500},
+			expectedChild3Fairshare: nil,
+			description: `Test max resources constraint on fair share calculation.
+
+Fair Share Calculation:
+1. Root Level: Total resources = 1000 CPU, 1000 memory
+2. Parent Level: Only parentA exists
+   - parentA fair share = 1000 CPU, 1000 memory (inherits from root)
+3. Child Level: Two children under parentA
+   - Base fair share = 1000 / 2 = 500 CPU, 500 memory each
+   - child1: min(500, 300) = 300 CPU, 300 memory (capped by max)
+   - child2: 1000 - 300 = 700, but gets base fair share = 500 CPU, 500 memory
+
+Expected Results:
+- parentA: 1000 CPU, 1000 memory (inherits from root)
+- child1: 300 CPU, 300 memory (capped by max resources)
+- child2: 500 CPU, 500 memory (gets base fair share)`,
+		},
+		{
+			name:          "Inactive sibling with no allocations",
+			rootResources: map[string]string{"cpu": "1000", "memory": "1000"},
+			parentAConfig: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			parentBConfig: nil,
+			child1Config: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			child2Config: &QueueConfig{
+				Props: map[string]string{"preemption.policy": "fairshare"},
+			},
+			child3Config:             nil,
+			child1Alloc:              map[string]resources.Quantity{"cpu": 1000, "memory": 1000},
+			child2Alloc:              nil,
+			child3Alloc:              nil,
+			expectedParentAFairshare: map[string]resources.Quantity{"cpu": 1000, "memory": 1000},
+			expectedParentBFairshare: nil,
+			expectedChild1Fairshare:  map[string]resources.Quantity{"cpu": 1000, "memory": 1000}, // Gets all as only active
+			expectedChild2Fairshare:  nil,
+			expectedChild3Fairshare:  nil,
+			description: `Test inactive sibling with no allocations.
+
+Fair Share Calculation:
+1. Root Level: Total resources = 1000 CPU, 1000 memory
+2. Parent Level: Only parentA exists
+   - parentA fair share = 1000 CPU, 1000 memory
+3. Child Level: Only child1 is active (has allocations)
+   - child1: Gets full parentA fair share = 1000 CPU, 1000 memory
+   - child2: Inactive (no allocations)
+
+Expected Results:
+- parentA: 1000 CPU, 1000 memory
+- child1: 1000 CPU, 1000 memory (only active child)`,
+		},
 	}
 
 	for _, tt := range tests {
