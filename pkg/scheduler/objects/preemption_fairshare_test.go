@@ -520,3 +520,97 @@ Expected Results:
 		})
 	}
 }
+
+func TestGetTotalChildAllocation(t *testing.T) {
+	tests := []struct {
+		name        string
+		childQueues []struct {
+			name       string
+			allocated  map[string]resources.Quantity
+			preempting map[string]resources.Quantity
+		}
+		expectedTotalAllocation map[string]resources.Quantity
+	}{
+		{
+			name: "Multiple children with preempting resources",
+			childQueues: []struct {
+				name       string
+				allocated  map[string]resources.Quantity
+				preempting map[string]resources.Quantity
+			}{
+				{
+					name:       "child1",
+					allocated:  map[string]resources.Quantity{"cpu": 300, "memory": 600, "pods": 1},
+					preempting: map[string]resources.Quantity{"cpu": 50, "memory": 100, "pods": 0},
+				},
+				{
+					name:       "child2",
+					allocated:  map[string]resources.Quantity{"cpu": 200, "memory": 400, "pods": 2},
+					preempting: map[string]resources.Quantity{"cpu": 0, "memory": 0, "pods": 0},
+				},
+				{
+					name:       "child3",
+					allocated:  map[string]resources.Quantity{"cpu": 100, "memory": 200, "pods": 1},
+					preempting: map[string]resources.Quantity{"cpu": 25, "memory": 50, "pods": 1},
+				},
+			},
+			expectedTotalAllocation: map[string]resources.Quantity{"cpu": 525, "memory": 1050, "pods": 3}, // (300-50) + (200-0) + (100-25)
+		},
+		{
+			name: "No children",
+			childQueues: []struct {
+				name       string
+				allocated  map[string]resources.Quantity
+				preempting map[string]resources.Quantity
+			}{},
+			expectedTotalAllocation: map[string]resources.Quantity{"cpu": 0, "memory": 0, "pods": 0},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var parentSnapshot *QueuePreemptionSnapshot
+
+			if tt.childQueues != nil {
+				// Create root queue
+				rootQ, err := createRootQueue(map[string]string{"cpu": "2000", "memory": "4000", "pods": "10"})
+				assert.NilError(t, err)
+
+				// Create parent queue
+				parentQ, err := createManagedQueueWithProps(rootQ, "parent", true, nil, nil)
+				assert.NilError(t, err)
+
+				// Create child queues with their allocations and preempting resources
+				for _, childConfig := range tt.childQueues {
+					childQ, err := createManagedQueueWithProps(parentQ, childConfig.name, false, nil, nil)
+					assert.NilError(t, err)
+
+					// Set allocated resources
+					if childConfig.allocated != nil {
+						allocatedResource := resources.NewResourceFromMap(childConfig.allocated)
+						assert.NilError(t, childQ.TryIncAllocatedResource(allocatedResource))
+					}
+
+					// Set preempting resources
+					if childConfig.preempting != nil {
+						preemptingResource := resources.NewResourceFromMap(childConfig.preempting)
+						childQ.preemptingResource = preemptingResource
+					}
+				}
+
+				// Create queue preemption snapshot
+				cache := make(map[string]*QueuePreemptionSnapshot)
+				parentSnapshot = parentQ.createPreemptionSnapshot(cache, "")
+			}
+
+			// Test GetTotalChildAllocation
+			totalChildAllocation := parentSnapshot.GetTotalChildAllocation()
+			expectedResource := resources.NewResourceFromMap(tt.expectedTotalAllocation)
+
+			assert.Assert(t, totalChildAllocation != nil, "Total child allocation should not be nil")
+			assert.Assert(t, resources.Equals(totalChildAllocation, expectedResource),
+				"Total child allocation mismatch. Got: %s, Expected: %s",
+				totalChildAllocation.String(), expectedResource.String())
+		})
+	}
+}
