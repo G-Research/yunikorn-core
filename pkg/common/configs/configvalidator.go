@@ -796,6 +796,11 @@ func Validate(newConfig *SchedulerConfig) error {
 		if err = checkLimitMaxApplications(partition.Queues[0], make(map[string]map[string]uint64), make(map[string]map[string]uint64), common.Empty); err != nil {
 			return err
 		}
+		// validate duration strings in configuration
+		err = validatePartitionDurations(&partition)
+		if err != nil {
+			return err
+		}
 		// write back the partition to keep changes
 		newConfig.Partitions[i] = partition
 	}
@@ -878,4 +883,32 @@ func getRuleChain(r PlacementRule) []PlacementRule {
 
 	rules = append(rules, r)
 	return rules
+}
+
+// validatePartitionDurations validates duration strings in partition configuration
+func validatePartitionDurations(partition *PartitionConfig) error {
+	// Validate scheduler durations
+	if partition.Scheduler.ReservationTTL != "" {
+		if _, err := time.ParseDuration(partition.Scheduler.ReservationTTL); err != nil {
+			return fmt.Errorf("invalid ReservationTTL '%s' in partition '%s': %w",
+				partition.Scheduler.ReservationTTL, partition.Name, err)
+		}
+	}
+
+	if partition.Scheduler.ReservationDelay != "" {
+		if _, err := time.ParseDuration(partition.Scheduler.ReservationDelay); err != nil {
+			return fmt.Errorf("invalid ReservationDelay '%s' in partition '%s': %w",
+				partition.Scheduler.ReservationDelay, partition.Name, err)
+		}
+	}
+
+	// Validate preemption durations
+	if partition.Preemption.PreemptAttemptFrequency != "" {
+		if _, err := time.ParseDuration(partition.Preemption.PreemptAttemptFrequency); err != nil {
+			return fmt.Errorf("invalid PreemptAttemptFrequency '%s' in partition '%s': %w",
+				partition.Preemption.PreemptAttemptFrequency, partition.Name, err)
+		}
+	}
+
+	return nil
 }

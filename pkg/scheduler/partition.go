@@ -66,6 +66,8 @@ type PartitionContext struct {
 	placeholderAllocations int                             // number of placeholder allocations
 	preemptionEnabled      bool                            // whether preemption is enabled or not
 
+	reservationWithGuaranteedResource bool
+
 	// The partition write lock must not be held while manipulating an application.
 	// Scheduling is running continuously as a lock free background task. Scheduling an application
 	// acquires a write lock of the application object. While holding the write lock a list of nodes is
@@ -131,6 +133,7 @@ func (pc *PartitionContext) initialPartitionFromConfig(conf configs.PartitionCon
 	pc.userGroupCache = security.GetUserGroupCache("")
 	pc.updateNodeSortingPolicy(conf)
 	pc.updatePreemption(conf)
+	pc.updateSchedulerConfig(conf)
 
 	// update limit settings: start at the root
 	return ugm.GetUserManager().UpdateConfig(queueConf, conf.Queues[0].Name)
@@ -156,6 +159,77 @@ func (pc *PartitionContext) updatePreemption(conf configs.PartitionConfig) {
 	pc.preemptionEnabled = conf.Preemption.Enabled == nil || *conf.Preemption.Enabled
 }
 
+func (pc *PartitionContext) updateSchedulerConfig(conf configs.PartitionConfig) {
+	// Parse configuration if provided
+	// Set global reservation TTL using the existing function
+	if conf.Scheduler.ReservationTTL != "" {
+		if ttl, err := time.ParseDuration(conf.Scheduler.ReservationTTL); err == nil {
+			objects.SetReservationTTL(ttl)
+			log.Log(log.SchedPartition).Info("Set global reservation TTL from config",
+				zap.String("partitionName", pc.Name),
+				zap.Duration("reservationTTL", ttl))
+		} else {
+			objects.SetReservationTTL(math.MaxInt64)
+			log.Log(log.SchedPartition).Warn("Invalid reservation TTL in config, using default",
+				zap.String("partitionName", pc.Name),
+				zap.String("configValue", conf.Scheduler.ReservationTTL),
+				zap.Error(err))
+		}
+	} else {
+		objects.SetReservationTTL(math.MaxInt64)
+	}
+
+	pc.reservationWithGuaranteedResource = conf.Scheduler.RequireGuaranteeForReservation != nil && *conf.Scheduler.RequireGuaranteeForReservation
+
+	log.Log(log.SchedPartition).Info("Set reservation with guaranteed resource from config",
+		zap.String("partitionName", pc.Name),
+		zap.Bool("reservationWithGuaranteedResource", pc.reservationWithGuaranteedResource))
+
+	// Set global reservation delay using the existing function
+	reservationDelayDefault := 2 * time.Second // Default delay
+	if conf.Scheduler.ReservationDelay != "" {
+		if delay, err := time.ParseDuration(conf.Scheduler.ReservationDelay); err == nil {
+			objects.SetReservationDelay(delay)
+			log.Log(log.SchedPartition).Info("Set global reservation delay from config",
+				zap.String("partitionName", pc.Name),
+				zap.Duration("reservationDelay", delay))
+		} else {
+			objects.SetReservationDelay(reservationDelayDefault)
+			log.Log(log.SchedPartition).Warn("Invalid reservation delay in config, using default",
+				zap.String("partitionName", pc.Name),
+				zap.String("configValue", conf.Scheduler.ReservationDelay),
+				zap.Error(err))
+		}
+	} else {
+		objects.SetReservationDelay(reservationDelayDefault)
+	}
+
+	// Set global preemption attempt frequency using the existing function
+	preemptAttemptFreqDefault := 15 * time.Second // Default frequency
+	if conf.Preemption.PreemptAttemptFrequency != "" {
+		if freq, err := time.ParseDuration(conf.Preemption.PreemptAttemptFrequency); err == nil {
+			objects.SetPreemptAttemptFrequency(freq)
+			log.Log(log.SchedPartition).Info("Set global preemption attempt frequency from config",
+				zap.String("partitionName", pc.Name),
+				zap.Duration("preemptAttemptFreq", freq))
+		} else {
+			objects.SetPreemptAttemptFrequency(preemptAttemptFreqDefault)
+			log.Log(log.SchedPartition).Warn("Invalid preemption attempt frequency in config, using default",
+				zap.String("partitionName", pc.Name),
+				zap.String("configValue", conf.Preemption.PreemptAttemptFrequency),
+				zap.Error(err))
+		}
+	} else {
+		objects.SetPreemptAttemptFrequency(preemptAttemptFreqDefault)
+	}
+
+}
+
+// GetReservationTTL returns the global reservation TTL
+func (pc *PartitionContext) GetReservationTTL() time.Duration {
+	return objects.GetReservationTTL()
+}
+
 func (pc *PartitionContext) updatePartitionDetails(conf configs.PartitionConfig) error {
 	// the following piece of code (before pc.Lock()) must be performed without locking
 	// to avoid lock order differences between PartitionContext and AppPlacementManager
@@ -173,6 +247,7 @@ func (pc *PartitionContext) updatePartitionDetails(conf configs.PartitionConfig)
 	pc.Lock()
 	defer pc.Unlock()
 	pc.updatePreemption(conf)
+	pc.updateSchedulerConfig(conf)
 	// start at the root: there is only one queue
 	queueConf := conf.Queues[0]
 	root := pc.root
@@ -802,10 +877,14 @@ func (pc *PartitionContext) calculateOutstandingRequests() []*objects.Allocation
 func (pc *PartitionContext) tryAllocate() *objects.AllocationResult {
 	if !resources.StrictlyGreaterThanZero(pc.root.GetPendingResource()) {
 		// nothing to do just return
+		log.Log(log.SchedPartition).Debug("no pending resources to process allocations",
+			zap.String("partition", pc.Name),
+			zap.Stringer("pendingResource", pc.root.GetPendingResource()),
+		)
 		return nil
 	}
 	// try allocating from the root down
-	result := pc.root.TryAllocate(pc.GetNodeIterator, pc.GetFullNodeIterator, pc.GetNode, pc.isPreemptionEnabled())
+	result := pc.root.TryAllocate(pc.GetNodeIterator, pc.GetFullNodeIterator, pc.GetNode, pc.isPreemptionEnabled(), pc.isReservationWithGuaranteedResourceSet())
 	if result != nil {
 		return pc.allocate(result)
 	}
@@ -816,9 +895,14 @@ func (pc *PartitionContext) tryAllocate() *objects.AllocationResult {
 // Lock free call this all locks are taken when needed in called functions
 func (pc *PartitionContext) tryReservedAllocate() *objects.AllocationResult {
 	if pc.getReservationCount() == 0 {
+		log.Log(log.SchedPartition).Debug("no reservations to process")
 		return nil
 	}
 	if !resources.StrictlyGreaterThanZero(pc.root.GetPendingResource()) {
+		log.Log(log.SchedPartition).Debug("no pending resources to process reservations",
+			zap.String("partition", pc.Name),
+			zap.Stringer("pendingResource", pc.root.GetPendingResource()),
+		)
 		// nothing to do just return
 		return nil
 	}
@@ -894,6 +978,10 @@ func (pc *PartitionContext) allocate(result *objects.AllocationResult) *objects.
 
 	// reservation
 	if result.ResultType == objects.Reserved {
+		log.Log(log.SchedPartition).Debug("Result Processing reservation in scheduler",
+			zap.String("appID", appID),
+			zap.String("allocationKey", result.Request.GetAllocationKey()),
+			zap.String("targetNode", targetNodeID))
 		pc.reserve(app, targetNode, result.Request)
 		return nil
 	}
@@ -1545,6 +1633,12 @@ func (pc *PartitionContext) isPreemptionEnabled() bool {
 	pc.RLock()
 	defer pc.RUnlock()
 	return pc.preemptionEnabled
+}
+
+func (pc *PartitionContext) isReservationWithGuaranteedResourceSet() bool {
+	pc.RLock()
+	defer pc.RUnlock()
+	return pc.reservationWithGuaranteedResource
 }
 
 func (pc *PartitionContext) moveTerminatedApp(appID string) {

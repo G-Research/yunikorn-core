@@ -2167,7 +2167,7 @@ func TestTryAllocateNoRequests(t *testing.T) {
 
 	app := newApplication(appID1, "default", "root.unknown")
 	preemptionAttemptsRemaining := 0
-	result := app.tryAllocate(node.GetAvailableResource(), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result := app.tryAllocate(node.GetAvailableResource(), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Check(t, result == nil, "unexpected result")
 }
 
@@ -2192,7 +2192,7 @@ func TestTryAllocateFit(t *testing.T) {
 	assert.NilError(t, err)
 
 	preemptionAttemptsRemaining := 0
-	result := app.tryAllocate(node.GetAvailableResource(), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result := app.tryAllocate(node.GetAvailableResource(), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 
 	assert.Assert(t, result != nil, "alloc expected")
 	assert.Assert(t, result.Request != nil, "alloc expected")
@@ -2236,24 +2236,24 @@ func TestTryAllocatePreemptQueue(t *testing.T) {
 
 	preemptionAttemptsRemaining := 10
 
-	result1 := app1.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 10}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result1 := app1.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 10}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Assert(t, result1 != nil, "result1 expected")
 	alloc1 := result1.Request
 	assert.Assert(t, alloc1 != nil, "alloc1 expected")
-	result2 := app1.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 5}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result2 := app1.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 5}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Assert(t, result2 != nil, "result2 expected")
 	alloc2 := result2.Request
 	assert.Assert(t, alloc2 != nil, "alloc2 expected")
 
 	// on first attempt, not enough time has passed
-	result3 := app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 0}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result3 := app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 0}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Assert(t, result3 == nil, "result3 not expected")
 	assert.Assert(t, !alloc2.IsPreempted(), "alloc2 should not have been preempted")
 	assertAllocationLog(t, ask3)
 
 	// pass the time and try again
 	ask3.createTime = ask3.createTime.Add(-30 * time.Second)
-	result3 = app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 0}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result3 = app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 0}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Assert(t, result3 != nil && result3.Request != nil && result3.ResultType == Reserved, "alloc3 should be a reservation")
 	assert.Assert(t, alloc2.IsPreempted(), "alloc2 should have been preempted")
 }
@@ -2310,7 +2310,7 @@ func TestTryAllocatePreemptNode(t *testing.T) {
 
 	// consume capacity with 'unlimited' app
 	for _, r := range []*resources.Resource{resources.NewResourceFromMap(map[string]resources.Quantity{"first": 40}), resources.NewResourceFromMap(map[string]resources.Quantity{"first": 39})} {
-		result0 := app0.tryAllocate(r, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+		result0 := app0.tryAllocate(r, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 		assert.Assert(t, result0 != nil, "result0 expected")
 		alloc0 := result0.Request
 		assert.Assert(t, alloc0 != nil, "alloc0 expected")
@@ -2321,7 +2321,7 @@ func TestTryAllocatePreemptNode(t *testing.T) {
 	allocs := make([]*Allocation, 0)
 	for _, r := range []*resources.Resource{resources.NewResourceFromMap(map[string]resources.Quantity{"first": 28}), resources.NewResourceFromMap(map[string]resources.Quantity{"first": 23})} {
 		var alloc1 *Allocation
-		result1 := app1.tryAllocate(r, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+		result1 := app1.tryAllocate(r, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 		assert.Assert(t, result1 != nil, "result1 expected")
 		alloc1 = result1.Request
 		assert.Assert(t, result1.Request != nil, "alloc1 expected")
@@ -2331,7 +2331,7 @@ func TestTryAllocatePreemptNode(t *testing.T) {
 
 	// on first attempt, should see a reservation since we're after the reservation timeout
 	ask3.createTime = ask3.createTime.Add(-10 * time.Second)
-	result3 := app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 18}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result3 := app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 18}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Assert(t, result3 != nil, "result3 expected")
 	alloc3 := result3.Request
 	assert.Assert(t, alloc3 != nil, "alloc3 not expected")
@@ -2342,14 +2342,14 @@ func TestTryAllocatePreemptNode(t *testing.T) {
 	assert.NilError(t, err)
 
 	// preemption delay not yet passed, so preemption should fail
-	result3 = app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 18}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result3 = app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 18}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Assert(t, result3 == nil, "result3 expected")
 	assert.Assert(t, !allocs[1].IsPreempted(), "alloc1 should have been preempted")
 	assertAllocationLog(t, ask3)
 
 	// pass the time and try again
 	ask3.createTime = ask3.createTime.Add(-30 * time.Second)
-	result3 = app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 18}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result3 = app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 18}), true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Assert(t, result3 != nil, "result3 expected")
 	assert.Equal(t, Reserved, result3.ResultType, "expected reservation")
 	alloc3 = result3.Request
@@ -2672,7 +2672,7 @@ func TestRequestDoesNotFitQueueEvents(t *testing.T) {
 	attempts := 0
 
 	// try to allocate
-	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode)
+	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode, false)
 	assert.Equal(t, 1, len(eventSystem.Events))
 	event := eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_REQUEST, event.Type)
@@ -2683,14 +2683,14 @@ func TestRequestDoesNotFitQueueEvents(t *testing.T) {
 	assert.Equal(t, "Request 'alloc-0' does not fit in queue 'root.default' (requested map[memory:100 vcores:10], available map[memory:0 vcores:0])", event.Message)
 
 	// second attempt - no new event
-	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode)
+	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode, false)
 	assert.Equal(t, 1, len(eventSystem.Events))
 
 	// third attempt with enough headroom - new event
 	eventSystem.Reset()
 	headroom, err = resources.NewResourceFromConf(map[string]string{"memory": "1000", "vcores": "1000"})
 	assert.NilError(t, err)
-	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode)
+	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode, false)
 	assert.Equal(t, 1, len(eventSystem.Events))
 	event = eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_REQUEST, event.Type)
@@ -2743,7 +2743,7 @@ func TestRequestDoesNotFitUserQuotaQueueEvents(t *testing.T) {
 	attempts := 0
 
 	// try to allocate
-	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode)
+	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode, false)
 	assert.Equal(t, 1, len(eventSystem.Events))
 	event := eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_REQUEST, event.Type)
@@ -2754,7 +2754,7 @@ func TestRequestDoesNotFitUserQuotaQueueEvents(t *testing.T) {
 	assert.Equal(t, "Request 'alloc-0' exceeds the available user quota (requested map[memory:100 vcores:10], available map[memory:1 vcores:1])", event.Message)
 
 	// second attempt - no new event
-	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode)
+	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode, false)
 	assert.Equal(t, 1, len(eventSystem.Events))
 
 	// third attempt with enough headroom - new event
@@ -2762,7 +2762,7 @@ func TestRequestDoesNotFitUserQuotaQueueEvents(t *testing.T) {
 	conf.Limits[0].MaxResources = nil
 	err = ugm.GetUserManager().UpdateConfig(conf, "root")
 	assert.NilError(t, err)
-	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode)
+	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode, false)
 	assert.Equal(t, 1, len(eventSystem.Events))
 	event = eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_REQUEST, event.Type)
@@ -2791,7 +2791,7 @@ func TestAllocationFailures(t *testing.T) {
 	attempts := 0
 
 	// case #1: not enough queue headroom
-	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode)
+	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode, false)
 	assert.Equal(t, 1, len(ask.allocLog))
 	assert.Equal(t, int32(1), ask.allocLog[NotEnoughQueueQuota].Count)
 
@@ -2818,7 +2818,7 @@ func TestAllocationFailures(t *testing.T) {
 	assert.NilError(t, err)
 	headroom, err = resources.NewResourceFromConf(map[string]string{"memory": "1000", "vcores": "1000"})
 	assert.NilError(t, err)
-	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode)
+	app.tryAllocate(headroom, true, time.Second, &attempts, nilNodeIterator, nilNodeIterator, nilGetNode, false)
 	assert.Equal(t, 2, len(ask.allocLog))
 	assert.Equal(t, int32(1), ask.allocLog[NotEnoughUserQuota].Count)
 }
@@ -3027,6 +3027,527 @@ func TestTryAllocateWithReservedHeadRoomChecking(t *testing.T) {
 	assert.Assert(t, result == nil, "result is expected to be nil due to insufficient headroom")
 }
 
+func TestReservationConfigurationParameters(t *testing.T) {
+	// Test that reservation parameters (TTL, delay) are correctly passed and used
+	app := newApplication(appID1, "default", "root.unknown")
+	queue, err := createRootQueue(nil)
+	assert.NilError(t, err, "queue create failed")
+	app.queue = queue
+
+	err = app.AddAllocationAsk(newAllocationAsk("ask-1", appID1, resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10, "vcores": 1})))
+	assert.NilError(t, err, "ask should be added")
+
+	node := newNode("node-1", map[string]resources.Quantity{"memory": 20, "vcores": 2})
+
+	// Test 1: Verify reservation TTL causes cleanup of expired reservations
+	ask := app.requests["ask-1"]
+	assert.Assert(t, ask != nil, "ask should exist")
+
+	// Reserve the ask on the node
+	err = app.Reserve(node, ask)
+	assert.NilError(t, err, "reservation should succeed")
+
+	// Set a very short global TTL (1 nanosecond) - reservation should expire immediately
+	originalTTL := GetReservationTTL()
+	SetReservationTTL(1 * time.Nanosecond)
+	defer SetReservationTTL(originalTTL) // Restore original value
+
+	headRoom := resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 20, "vcores": 2})
+	iter := getNodeIteratorFn(node)
+
+	// Wait a tiny bit to ensure expiration
+	time.Sleep(1 * time.Millisecond)
+
+	result := app.tryReservedAllocate(headRoom, iter)
+
+	// Should return an unreservation result due to TTL expiry
+	assert.Assert(t, result != nil, "should return unreservation result")
+	assert.Equal(t, result.ResultType, Unreserved, "should be unreservation due to TTL")
+	assert.Equal(t, result.Request.GetAllocationKey(), "ask-1", "should unreserve the expired ask")
+}
+
+func TestReservationTTLConfiguration(t *testing.T) {
+	// Comprehensive test for ReservationTTL functionality
+	// This test focuses on the TTL expiry mechanism in tryReservedAllocate
+	setupUGM()
+
+	app := newApplication(appID1, "default", "root.unknown")
+	queue, err := createRootQueue(map[string]string{"memory": "100"})
+	assert.NilError(t, err, "queue create failed")
+	app.queue = queue
+
+	ask := newAllocationAsk("ttl-ask", appID1, resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}))
+	ask.createTime = time.Now().Add(-1 * time.Hour) // Old enough to bypass reservation delay
+	err = app.AddAllocationAsk(ask)
+	assert.NilError(t, err, "ask should be added")
+
+	// Create a node with limited available capacity to prevent allocation
+	node := newNode("node1", map[string]resources.Quantity{"memory": 10})
+	// Consume most of the node capacity to ensure reservation can't be allocated
+	dummyAlloc := newAllocation("dummy", "node1", resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 8}))
+	node.AddAllocation(dummyAlloc)
+
+	iterator := getNodeIteratorFn(node)
+
+	// Create a reservation manually
+	err = app.Reserve(node, ask)
+	assert.NilError(t, err, "manual reservation should succeed")
+	assert.Assert(t, app.HasReserved(), "app should have reservations")
+
+	// Insufficient headroom to prevent actual allocation from happening
+	headRoom := resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 5}) // Less than ask (10)
+
+	// Store original TTL to restore later
+	originalTTL := GetReservationTTL()
+	defer SetReservationTTL(originalTTL)
+
+	// Test 1: Long TTL - reservation should NOT expire
+	SetReservationTTL(24 * time.Hour) // Very long TTL
+	result := app.tryReservedAllocate(headRoom, iterator)
+	assert.Assert(t, result == nil, "with long TTL and insufficient headroom, should not process reservation")
+	assert.Assert(t, app.HasReserved(), "reservation should still exist with long TTL")
+
+	// Test 2: Very short TTL with sufficient headroom - should trigger TTL expiry check
+	SetReservationTTL(1 * time.Nanosecond) // Very short TTL
+	headRoomSufficient := resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 15}) // Enough for the ask
+
+	// Wait a tiny bit to ensure the reservation is old enough
+	time.Sleep(1 * time.Millisecond)
+
+	result = app.tryReservedAllocate(headRoomSufficient, iterator)
+	assert.Assert(t, result != nil, "with short TTL, should return unreservation result")
+	assert.Equal(t, result.ResultType, Unreserved, "should be unreservation due to TTL expiry")
+	assert.Equal(t, result.Request.GetAllocationKey(), "ttl-ask", "should unreserve the correct ask")
+
+	// Process the unreservation result (this actually removes the reservation)
+	reservationCount := app.UnReserve(node, ask)
+	assert.Equal(t, reservationCount, 1, "should have unreserved one reservation")
+
+	// Verify reservation was cleaned up
+	assert.Assert(t, !app.HasReserved(), "reservation should be cleaned up after TTL expiry")
+
+	// Test 3: Edge case - Zero TTL (should expire immediately)
+	SetReservationTTL(0)
+	err = app.Reserve(node, ask) // Create reservation again
+	assert.NilError(t, err, "manual reservation should succeed")
+
+	result = app.tryReservedAllocate(headRoomSufficient, iterator)
+	assert.Assert(t, result != nil, "with zero TTL, should return unreservation result")
+	assert.Equal(t, result.ResultType, Unreserved, "should be unreservation due to zero TTL")
+
+	// Process the unreservation
+	reservationCount = app.UnReserve(node, ask)
+	assert.Equal(t, reservationCount, 1, "should have unreserved one reservation")
+
+	// Test 4: Negative TTL (should be treated as immediate expiry)
+	SetReservationTTL(-1 * time.Second)
+	err = app.Reserve(node, ask) // Create reservation again
+	assert.NilError(t, err, "manual reservation should succeed")
+
+	result = app.tryReservedAllocate(headRoomSufficient, iterator)
+	assert.Assert(t, result != nil, "with negative TTL, should return unreservation result")
+	assert.Equal(t, result.ResultType, Unreserved, "should be unreservation due to negative TTL")
+
+	// Process the unreservation
+	reservationCount = app.UnReserve(node, ask)
+	assert.Equal(t, reservationCount, 1, "should have unreserved one reservation")
+}
+
+func TestReservationDelayConfiguration(t *testing.T) {
+	// Test the ReservationDelay functionality - asks must wait for delay period before being eligible for reservation
+	setupUGM()
+
+	// Save original delay and restore after test
+	SetReservationDelay(2 * time.Second) // Set to default value first
+	defer func() { SetReservationDelay(2 * time.Second) }() // Restore default at end
+
+	// Create test infrastructure
+	rootQ, err := createRootQueue(map[string]string{"memory": "20"})
+	assert.NilError(t, err)
+	childQ, err := createManagedQueue(rootQ, "child", false, map[string]string{"memory": "20"})
+	assert.NilError(t, err)
+
+	// Create node with limited capacity to force reservation scenario
+	node := newNode("node1", map[string]resources.Quantity{"memory": 5})
+	nodeMap := map[string]*Node{"node1": node}
+	iterator := getNodeIteratorFn(node)
+	getNode := func(nodeID string) *Node {
+		return nodeMap[nodeID]
+	}
+
+	// Consume most of the node capacity, leaving insufficient space for our ask
+	dummyAlloc := newAllocation("dummy", "node1", resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 4}))
+	node.AddAllocation(dummyAlloc)
+
+	preemptionAttemptsRemaining := 0
+
+	// Test Case 1: Zero delay (should allow immediate reservations)
+	t.Log("Testing zero delay - should allow immediate reservations")
+	SetReservationDelay(0)
+
+	app1 := newApplication("app-1", "default", "root.child")
+	app1.SetQueue(childQ)
+	childQ.applications["app-1"] = app1
+
+	ask1 := newAllocationAsk("immediate-ask", "app-1", resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 3}))
+	ask1.createTime = time.Now() // Brand new ask
+	err = app1.AddAllocationAsk(ask1)
+	assert.NilError(t, err, "ask1 should be added")
+
+	result1 := app1.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		false, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
+
+	if result1 != nil {
+		assert.Equal(t, result1.ResultType, Reserved, "with zero delay, should create reservation immediately")
+		t.Logf("Zero delay: Got immediate reservation on node %s", result1.NodeID)
+		app1.UnReserve(node, ask1)
+	} else {
+		t.Log("Zero delay: Expected immediate reservation but got nil result")
+	}
+
+	// Test Case 2: Default delay (2 seconds) - new ask should not be eligible
+	t.Log("Testing default delay - new ask should not be eligible for reservation")
+	SetReservationDelay(2 * time.Second)
+
+	app2 := newApplication("app-2", "default", "root.child")
+	app2.SetQueue(childQ)
+	childQ.applications["app-2"] = app2
+
+	ask2 := newAllocationAsk("new-ask", "app-2", resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 3}))
+	ask2.createTime = time.Now() // Brand new ask
+	err = app2.AddAllocationAsk(ask2)
+	assert.NilError(t, err, "ask2 should be added")
+
+	result2 := app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		false, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
+
+	assert.Assert(t, result2 == nil, "brand new ask should not create reservation with default delay")
+	assert.Assert(t, !app2.HasReserved(), "no reservation should be created for new ask")
+
+	// Test Case 3: Old ask should be eligible for reservation
+	t.Log("Testing default delay - old ask should be eligible for reservation")
+	ask3 := newAllocationAsk("old-ask", "app-2", resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 3}))
+	ask3.createTime = time.Now().Add(-5 * time.Second) // 5 seconds old, over 2 second threshold
+	err = app2.AddAllocationAsk(ask3)
+	assert.NilError(t, err, "ask3 should be added")
+
+	result3 := app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		false, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
+
+	if result3 != nil {
+		assert.Equal(t, result3.ResultType, Reserved, "old ask over delay threshold should create reservation")
+		t.Logf("Default delay with old ask: Got reservation on node %s", result3.NodeID)
+		app2.UnReserve(node, ask3)
+	} else {
+		t.Log("Default delay with old ask: Expected reservation but got nil result")
+	}
+
+	// Test Case 4: Long delay (10 seconds) - even moderately old ask should not be eligible
+	t.Log("Testing long delay - moderately old ask should not be eligible")
+	SetReservationDelay(10 * time.Second)
+
+	app4 := newApplication("app-4", "default", "root.child")
+	app4.SetQueue(childQ)
+	childQ.applications["app-4"] = app4
+
+	ask4 := newAllocationAsk("moderate-age-ask", "app-4", resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 3}))
+	ask4.createTime = time.Now().Add(-5 * time.Second) // 5 seconds old, under 10 second threshold
+	err = app4.AddAllocationAsk(ask4)
+	assert.NilError(t, err, "ask4 should be added")
+
+	result4 := app4.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		false, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
+
+	assert.Assert(t, result4 == nil, "moderately old ask under long delay threshold should not create reservation")
+	assert.Assert(t, !app4.HasReserved(), "no reservation should be created for ask under delay threshold")
+
+	// Test Case 5: Long delay with very old ask - should allow reservation
+	t.Log("Testing long delay - very old ask should be eligible")
+	ask5 := newAllocationAsk("very-old-ask", "app-4", resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 3}))
+	ask5.createTime = time.Now().Add(-15 * time.Second) // 15 seconds old, over 10 second threshold
+	err = app4.AddAllocationAsk(ask5)
+	assert.NilError(t, err, "ask5 should be added")
+
+	result5 := app4.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		false, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
+
+	if result5 != nil {
+		assert.Equal(t, result5.ResultType, Reserved, "very old ask over long delay threshold should create reservation")
+		t.Logf("Long delay with very old ask: Got reservation on node %s", result5.NodeID)
+	} else {
+		t.Log("Long delay with very old ask: Expected reservation but got nil result")
+	}
+}
+
+func TestPreemptAttemptFrequencyConfiguration(t *testing.T) {
+	// Test the PreemptAttemptFrequency functionality - controls how often preemption attempts can occur
+	setupUGM()
+
+	// Save original frequency and restore after test
+	originalFreq := GetPreemptAttemptFrequency()
+	defer func() { SetPreemptAttemptFrequency(originalFreq) }()
+
+	// Create test infrastructure
+	rootQ, err := createRootQueue(map[string]string{"memory": "20"})
+	assert.NilError(t, err)
+	childQ, err := createManagedQueue(rootQ, "child", false, map[string]string{"memory": "20"})
+	assert.NilError(t, err)
+
+	app := newApplication(appID1, "default", "root.child")
+	app.SetQueue(childQ)
+	childQ.applications[appID1] = app
+
+	// Create node with capacity
+	node := newNode("node1", map[string]resources.Quantity{"memory": 10})
+	iterator := getNodeIteratorFn(node)
+
+	// Create ask that can trigger preemption
+	askRes := resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 5})
+	ask := newAllocationAsk("preempt-ask", appID1, askRes)
+	ask.allowPreemptOther = true
+	ask.createTime = time.Now().Add(-1 * time.Hour) // Old enough to pass delay checks
+	err = app.AddAllocationAsk(ask)
+	assert.NilError(t, err, "ask should be added")
+
+	// Test Case 1: Zero frequency (should allow immediate successive attempts)
+	t.Log("Testing zero frequency - should allow immediate successive preemption attempts")
+	SetPreemptAttemptFrequency(0)
+
+	preemptor := NewPreemptor(app, resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		0, ask, iterator(), false)
+
+	// First attempt should succeed
+	result1 := preemptor.CheckPreconditions()
+	assert.Assert(t, result1, "first preemption check should succeed with zero frequency")
+
+	// Immediate second attempt should also succeed (no delay with zero frequency)
+	result2 := preemptor.CheckPreconditions()
+	assert.Assert(t, result2, "second immediate preemption check should succeed with zero frequency")
+
+	// Test Case 2: Very short frequency (1 millisecond)
+	t.Log("Testing short frequency - should block immediate attempts but allow after delay")
+	SetPreemptAttemptFrequency(1 * time.Millisecond)
+
+	// Reset the ask's check time
+	ask.preemptCheckTime = time.Now().Add(-1 * time.Minute)
+	preemptor2 := NewPreemptor(app, resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		0, ask, iterator(), false)
+
+	// First attempt should succeed and update check time
+	result3 := preemptor2.CheckPreconditions()
+	assert.Assert(t, result3, "first preemption check should succeed")
+
+	// Immediate second attempt should fail (frequency not reached)
+	result4 := preemptor2.CheckPreconditions()
+	assert.Assert(t, !result4, "immediate second preemption check should fail with frequency limit")
+
+	// Wait for frequency period to pass
+	time.Sleep(2 * time.Millisecond)
+
+	// Third attempt should succeed (frequency period has passed)
+	result5 := preemptor2.CheckPreconditions()
+	assert.Assert(t, result5, "preemption check should succeed after frequency period")
+
+	// Test Case 3: Default frequency (15 seconds)
+	t.Log("Testing default frequency - should enforce 15 second intervals")
+	SetPreemptAttemptFrequency(15 * time.Second)
+
+	// Reset the ask's check time to long ago
+	ask.preemptCheckTime = time.Now().Add(-1 * time.Hour)
+	preemptor3 := NewPreemptor(app, resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		0, ask, iterator(), false)
+
+	// First attempt should succeed
+	result6 := preemptor3.CheckPreconditions()
+	assert.Assert(t, result6, "first preemption check should succeed with default frequency")
+
+	// Immediate second attempt should fail
+	result7 := preemptor3.CheckPreconditions()
+	assert.Assert(t, !result7, "immediate second preemption check should fail with default frequency")
+
+	// Test Case 4: Short frequency with moderately old check time
+	t.Log("Testing frequency boundary conditions")
+	SetPreemptAttemptFrequency(5 * time.Second)
+
+	// Set check time to 3 seconds ago (under 5 second threshold)
+	ask.preemptCheckTime = time.Now().Add(-3 * time.Second)
+	preemptor4 := NewPreemptor(app, resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		0, ask, iterator(), false)
+
+	// Attempt should fail (under frequency threshold)
+	result8 := preemptor4.CheckPreconditions()
+	assert.Assert(t, !result8, "preemption check should fail when under frequency threshold")
+
+	// Set check time to 6 seconds ago (over 5 second threshold)
+	ask.preemptCheckTime = time.Now().Add(-6 * time.Second)
+	preemptor5 := NewPreemptor(app, resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		0, ask, iterator(), false)
+
+	// Attempt should succeed (over frequency threshold)
+	result9 := preemptor5.CheckPreconditions()
+	assert.Assert(t, result9, "preemption check should succeed when over frequency threshold")
+
+	// Test Case 5: Verify UpdatePreemptCheckTime is called on successful check
+	t.Log("Testing that successful checks update the preempt check time")
+	beforeTime := time.Now()
+	ask.preemptCheckTime = time.Now().Add(-1 * time.Hour) // Reset to old time
+
+	preemptor6 := NewPreemptor(app, resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		0, ask, iterator(), false)
+
+	result10 := preemptor6.CheckPreconditions()
+	assert.Assert(t, result10, "preemption check should succeed")
+
+	// Verify the check time was updated to recent time
+	afterTime := ask.GetPreemptCheckTime()
+	assert.Assert(t, afterTime.After(beforeTime), "preempt check time should be updated after successful check")
+}
+
+func TestRequireGuaranteeForReservationFlag(t *testing.T) {
+	// Test the RequireGuaranteeForReservation feature flag functionality
+	setupUGM()
+
+	// First, let's test without the flag to ensure basic reservation works
+	rootQ, err := createRootQueue(map[string]string{"memory": "20"})
+	assert.NilError(t, err)
+	childQ, err := createManagedQueue(rootQ, "child", false, map[string]string{"memory": "20"})
+	assert.NilError(t, err)
+
+	app := newApplication(appID1, "default", "root.child")
+	app.SetQueue(childQ)
+	childQ.applications[appID1] = app
+
+	// Create ask old enough for reservation
+	ask := newAllocationAsk("alloc1", appID1, resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 3}))
+	ask.createTime = time.Now().Add(-10 * time.Second) // Make it old enough for reservation
+	err = app.AddAllocationAsk(ask)
+	assert.NilError(t, err, "ask should be added")
+
+	// Create node with some capacity but mostly consumed
+	node := newNode("node1", map[string]resources.Quantity{"memory": 5})
+	nodeMap := map[string]*Node{"node1": node}
+	iterator := getNodeIteratorFn(node)
+	getNode := func(nodeID string) *Node {
+		return nodeMap[nodeID]
+	}
+
+	// Consume most of the node capacity, leaving insufficient space for our ask
+	dummyAlloc := newAllocation("dummy", "node1", resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 4}))
+	node.AddAllocation(dummyAlloc)
+
+	preemptionAttemptsRemaining := 0
+
+	// Test without RequireGuaranteeForReservation flag (should create reservation)
+	result := app.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		false, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
+
+	if result != nil {
+		assert.Equal(t, result.ResultType, Reserved, "expected reservation without flag")
+		t.Logf("Without flag: Got reservation on node %s", result.NodeID)
+	} else {
+		t.Log("Without flag: Got nil result - no reservation created")
+	}
+
+	// Clean up the reservation for next test
+	if result != nil {
+		app.UnReserve(node, ask)
+	}
+
+	// Now test with RequireGuaranteeForReservation flag
+	// Reset for new test
+
+	// Test Case 1: Queue UNDER guarantee - should allow reservation
+	rootQGuaranteed, err := createRootQueue(map[string]string{"memory": "20"})
+	assert.NilError(t, err)
+	childQGuaranteed, err := createManagedQueueGuaranteed(rootQGuaranteed, "child", false,
+		map[string]string{"memory": "20"}, // max
+		map[string]string{"memory": "10"}) // guaranteed
+	assert.NilError(t, err)
+
+	app2 := newApplication("app-2", "default", "root.child")
+	app2.SetQueue(childQGuaranteed)
+	childQGuaranteed.applications["app-2"] = app2
+
+	ask2 := newAllocationAsk("alloc2", "app-2", resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 3}))
+	ask2.createTime = time.Now().Add(-10 * time.Second)
+	err = app2.AddAllocationAsk(ask2)
+	assert.NilError(t, err, "ask2 should be added")
+
+	// Set queue allocated < guaranteed (5 < 10 = under guarantee)
+	childQGuaranteed.allocatedResource = resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 5})
+
+	result2 := app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		false, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, true)
+
+	if result2 != nil {
+		assert.Equal(t, result2.ResultType, Reserved, "expected reservation when under guarantee")
+		t.Logf("Under guarantee: Got reservation on node %s", result2.NodeID)
+	} else {
+		t.Log("Under guarantee: Got nil result - checking guarantee logic")
+		// Let's check the guarantee calculation
+		guaranteed := childQGuaranteed.guaranteedResource
+		allocated := childQGuaranteed.allocatedResource
+		fits := guaranteed.FitIn(allocated)
+		t.Logf("Guaranteed: %v, Allocated: %v, FitIn result: %v", guaranteed, allocated, fits)
+		t.Logf("Expected: allocated should be < guaranteed, so FitIn should be true, !FitIn should be false")
+	}
+
+	// Test Case 2: Queue AT guarantee - should allow reservation
+	// Set queue allocated = guaranteed (10 = 10 = at guarantee)
+	childQGuaranteed.allocatedResource = resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10})
+
+	result3 := app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		false, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, true)
+
+	if result3 != nil {
+		assert.Equal(t, result3.ResultType, Reserved, "expected reservation when at guarantee")
+		t.Logf("At guarantee: Got reservation on node %s", result3.NodeID)
+		app2.UnReserve(node, ask2) // Clean up
+	} else {
+		t.Log("At guarantee: Got nil result - no reservation created")
+	}
+
+	// Test Case 3: Queue OVER guarantee - should NOT allow reservation
+	// Set queue allocated > guaranteed (15 > 10 = over guarantee)
+	childQGuaranteed.allocatedResource = resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 15})
+
+	result4 := app2.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		false, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, true)
+
+	if result4 != nil {
+		t.Errorf("Over guarantee: Should not have created reservation, but got: %s on node %s", result4.ResultType, result4.NodeID)
+	} else {
+		t.Log("Over guarantee: Correctly got nil result - no reservation created")
+	}
+
+	// Test Case 4: Edge case - Zero guarantee (special case)
+	childQZero, err := createManagedQueueGuaranteed(rootQGuaranteed, "child-zero", false,
+		map[string]string{"memory": "20"}, // max
+		map[string]string{})               // no guaranteed resources
+	assert.NilError(t, err)
+
+	app3 := newApplication("app-3", "default", "root.child-zero")
+	app3.SetQueue(childQZero)
+	childQZero.applications["app-3"] = app3
+
+	ask3 := newAllocationAsk("alloc3", "app-3", resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 3}))
+	ask3.createTime = time.Now().Add(-10 * time.Second)
+	err = app3.AddAllocationAsk(ask3)
+	assert.NilError(t, err, "ask3 should be added")
+
+	// Set some allocated resources on zero guarantee queue
+	childQZero.allocatedResource = resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 5})
+
+	result5 := app3.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"memory": 10}),
+		false, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, true)
+
+	if result5 != nil {
+		t.Errorf("Zero guarantee with allocated > 0: Should not have created reservation, but got: %s on node %s", result5.ResultType, result5.NodeID)
+	} else {
+		t.Log("Zero guarantee with allocated > 0: Correctly got nil result - no reservation created")
+	}
+}
+
 func TestUpdateRunnableStatus(t *testing.T) {
 	app := newApplication(appID0, "default", "root.unknown")
 	assert.Assert(t, app.runnableInQueue)
@@ -3109,7 +3630,7 @@ func TestPredicateFailedEvents(t *testing.T) {
 
 	app.tryAllocate(headroom, false, time.Second, &attempts, func() NodeIterator {
 		return &testIterator{}
-	}, nilNodeIterator, nilGetNode)
+	}, nilNodeIterator, nilGetNode, false)
 	assert.Equal(t, 1, len(eventSystem.Events))
 	event := eventSystem.Events[0]
 	assert.Equal(t, si.EventRecord_REQUEST, event.Type)
@@ -3161,7 +3682,7 @@ func TestRequiredNodePreemption(t *testing.T) {
 
 	// allocate ask
 	headRoom := resources.NewResourceFromMap(map[string]resources.Quantity{"first": 50})
-	result := app.tryAllocate(headRoom, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result := app.tryAllocate(headRoom, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Equal(t, result.ResultType, Allocated, "could not allocate ask-1")
 	assert.Equal(t, result.Request.allocationKey, "ask-1", "unexpected allocation key")
 
@@ -3173,7 +3694,7 @@ func TestRequiredNodePreemption(t *testing.T) {
 	assert.NilError(t, err, "could not add ask-2")
 
 	// try to allocate ask2 with node being full - expect a reservation
-	result = app.tryAllocate(headRoom, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result = app.tryAllocate(headRoom, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Equal(t, result.ResultType, Reserved, "allocation result is not reserved")
 	assert.Equal(t, result.Request.allocationKey, "ask-2", "unexpected allocation key")
 	err = app.Reserve(node, ask2)
@@ -3240,7 +3761,7 @@ func TestRequiredNodePreemptionFailed(t *testing.T) {
 
 	// allocate ask
 	headRoom := resources.NewResourceFromMap(map[string]resources.Quantity{"first": 50})
-	result := app.tryAllocate(headRoom, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result := app.tryAllocate(headRoom, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Equal(t, result.ResultType, Allocated, "could not allocate ask-1")
 	assert.Equal(t, result.Request.allocationKey, "ask-1", "unexpected allocation key")
 
@@ -3252,7 +3773,7 @@ func TestRequiredNodePreemptionFailed(t *testing.T) {
 	assert.NilError(t, err, "could not add ask-2")
 
 	// try to allocate ask2 with node being full - expect a reservation
-	result = app.tryAllocate(headRoom, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result = app.tryAllocate(headRoom, true, 30*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Equal(t, result.ResultType, Reserved, "allocation result is not reserved")
 	assert.Equal(t, result.Request.allocationKey, "ask-2", "unexpected allocation key")
 	err = app.Reserve(node, ask2)

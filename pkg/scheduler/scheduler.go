@@ -24,6 +24,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/apache/yunikorn-core/pkg/common"
 	"github.com/apache/yunikorn-core/pkg/common/resources"
 	"github.com/apache/yunikorn-core/pkg/handler"
 	"github.com/apache/yunikorn-core/pkg/log"
@@ -32,14 +33,17 @@ import (
 	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
 )
 
+const disableAutoscale = "DISABLE_AUTOSCALE"
+
 // Main Scheduler service that starts the needed sub services
 type Scheduler struct {
-	clusterContext  *ClusterContext  // main context
-	pendingEvents   chan interface{} // queue for events
-	activityPending chan bool        // activity pending channel
-	stop            chan struct{}    // channel to signal stop request
-	healthChecker   *HealthChecker
-	nodesMonitor    *nodesResourceUsageMonitor
+	clusterContext   *ClusterContext  // main context
+	pendingEvents    chan interface{} // queue for events
+	activityPending  chan bool        // activity pending channel
+	stop             chan struct{}    // channel to signal stop request
+	healthChecker    *HealthChecker
+	nodesMonitor     *nodesResourceUsageMonitor
+	disableAutoscale bool
 }
 
 func NewScheduler() *Scheduler {
@@ -48,6 +52,7 @@ func NewScheduler() *Scheduler {
 	m.pendingEvents = make(chan interface{}, 1024*1024)
 	m.activityPending = make(chan bool, 1)
 	m.stop = make(chan struct{})
+	m.disableAutoscale = common.GetBoolEnvVar(disableAutoscale, false)
 	return m
 }
 
@@ -98,9 +103,16 @@ func (s *Scheduler) internalInspectOutstandingRequests() {
 			return
 		case <-time.After(time.Second):
 			if noRequests, totalResources := s.inspectOutstandingRequests(); noRequests > 0 {
-				log.Log(log.Scheduler).Info("Found outstanding requests that will trigger autoscaling",
-					zap.Int("number of requests", noRequests),
-					zap.Stringer("total resources", totalResources))
+				if s.disableAutoscale {
+					log.Log(log.Scheduler).Info("Found outstanding requests that would trigger autoscaling but autoscaling is disabled",
+						zap.Int("number of requests", noRequests),
+						zap.Stringer("total resources", totalResources),
+						zap.Bool("disableAutoscale", s.disableAutoscale))
+				} else {
+					log.Log(log.Scheduler).Info("Found outstanding requests that will trigger autoscaling",
+						zap.Int("number of requests", noRequests),
+						zap.Stringer("total resources", totalResources))
+				}
 			}
 		}
 	}
@@ -188,11 +200,21 @@ func (s *Scheduler) inspectOutstandingRequests() (int, *resources.Resource) {
 						ApplicationID: ask.GetApplicationID(),
 						AllocationKey: ask.GetAllocationKey(),
 						State:         si.UpdateContainerSchedulingStateRequest_FAILED,
-						Reason:        "request is waiting for cluster resources become available",
+						Reason:        "request is waiting for cluster resources to become available",
 					})
 				}
 				total.AddTo(ask.GetAllocatedResource())
-				ask.SetScaleUpTriggered(true)
+				if !s.disableAutoscale {
+					log.Log(log.Scheduler).Debug("trigger scale up for outstanding request",
+						zap.String("appID", ask.GetApplicationID()),
+						zap.String("allocationKey", ask.GetAllocationKey()))
+					ask.SetScaleUpTriggered(true)
+				} else {
+					log.Log(log.Scheduler).Debug("autoscaling is disabled, skip triggering scale up for outstanding request",
+						zap.String("appID", ask.GetApplicationID()),
+						zap.String("allocationKey", ask.GetAllocationKey()),
+						zap.Bool("disableAutoscale", s.disableAutoscale))
+				}
 			}
 		}
 	}

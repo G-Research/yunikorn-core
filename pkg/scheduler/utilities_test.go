@@ -19,6 +19,7 @@
 package scheduler
 
 import (
+	"os"
 	"strconv"
 	"testing"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/apache/yunikorn-core/pkg/common/configs"
 	"github.com/apache/yunikorn-core/pkg/common/resources"
 	"github.com/apache/yunikorn-core/pkg/common/security"
+	"github.com/apache/yunikorn-core/pkg/log"
 	"github.com/apache/yunikorn-core/pkg/rmproxy"
 	"github.com/apache/yunikorn-core/pkg/scheduler/objects"
 	"github.com/apache/yunikorn-core/pkg/scheduler/ugm"
@@ -53,6 +55,15 @@ const (
 	maxresources    = "maxresources"
 	maxapplications = "maxapplications"
 )
+
+func init() {
+	// Enable debug logging for tests if YUNIKORN_TEST_DEBUG environment variable is set
+	if os.Getenv("YUNIKORN_TEST_DEBUG") == "true" {
+		log.UpdateLoggingConfig(map[string]string{
+			"log.level": "DEBUG",
+		})
+	}
+}
 
 func newBasePartitionNoRootDefault() (*PartitionContext, error) {
 	conf := configs.PartitionConfig{

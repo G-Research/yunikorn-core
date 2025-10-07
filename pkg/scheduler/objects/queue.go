@@ -1397,10 +1397,34 @@ func (sq *Queue) canRunApp(appID string) bool {
 	defer sq.Unlock()
 	// if we do not have a max set or this app is already tracked proceed
 	if sq.maxRunningApps == 0 || sq.allocatingAcceptedApps[appID] {
+		log.Log(log.SchedQueue).Debug("app can run in queue",
+			zap.String("queueName", sq.QueuePath),
+			zap.String("appID", appID),
+			zap.Uint64("maxRunningApps", sq.maxRunningApps),
+			zap.Uint64("runningApps", sq.runningApps),
+			zap.Int("allocatingAcceptedApps", len(sq.allocatingAcceptedApps)))
 		return true
 	}
 	running := sq.runningApps + uint64(len(sq.allocatingAcceptedApps)+1) //nolint: gosec
-	return running <= sq.maxRunningApps
+	result := running <= sq.maxRunningApps
+	if result {
+		log.Log(log.SchedQueue).Debug("app can run in queue",
+			zap.String("queueName", sq.QueuePath),
+			zap.String("appID", appID),
+			zap.Uint64("maxRunningApps", sq.maxRunningApps),
+			zap.Uint64("runningApps", sq.runningApps),
+			zap.Int("allocatingAcceptedApps", len(sq.allocatingAcceptedApps)),
+			zap.Uint64("running if accepted", running))
+	} else {
+		log.Log(log.SchedQueue).Debug("app cannot run in queue",
+			zap.String("queueName", sq.QueuePath),
+			zap.String("appID", appID),
+			zap.Uint64("maxRunningApps", sq.maxRunningApps),
+			zap.Uint64("runningApps", sq.runningApps),
+			zap.Int("allocatingAcceptedApps", len(sq.allocatingAcceptedApps)),
+			zap.Uint64("running if accepted", running))
+	}
+	return result
 }
 
 // TryAllocate tries to allocate a pending requests. This only gets called if there is a pending request
@@ -1409,22 +1433,38 @@ func (sq *Queue) canRunApp(appID string) bool {
 // resources are skipped.
 // Applications are sorted based on the application sortPolicy. Applications without pending resources are skipped.
 // Lock free call this all locks are taken when needed in called functions
-func (sq *Queue) TryAllocate(iterator func() NodeIterator, fullIterator func() NodeIterator, getnode func(string) *Node, allowPreemption bool) *AllocationResult {
+func (sq *Queue) TryAllocate(iterator func() NodeIterator, fullIterator func() NodeIterator, getnode func(string) *Node, allowPreemption bool, reservationWithGuaranteedResource bool) *AllocationResult {
 	if sq.IsLeafQueue() {
 		// get the headroom
 		headRoom := sq.getHeadRoom()
 		preemptionDelay := sq.GetPreemptionDelay()
 		preemptAttemptsRemaining := maxPreemptionsPerQueue
 
+		log.Log(log.SchedQueue).Debug("trying to allocate for leaf queue",
+			zap.String("queueName", sq.QueuePath),
+			zap.Stringer("headRoom", headRoom),
+			zap.Bool("allowPreemption", allowPreemption),
+			zap.Duration("preemptionDelay", preemptionDelay),
+			zap.Int("preemptAttemptsRemaining", preemptAttemptsRemaining))
+
 		// process the apps (filters out app without pending requests)
 		for _, app := range sq.sortApplications(false) {
+			log.Log(log.SchedQueue).Debug("trying to allocate for application",
+				zap.String("queueName", sq.QueuePath),
+				zap.String("appID", app.ApplicationID))
 			runnableInQueue := sq.canRunApp(app.ApplicationID)
 			runnableByUserLimit := ugm.GetUserManager().CanRunApp(sq.QueuePath, app.ApplicationID, app.user)
 			app.updateRunnableStatus(runnableInQueue, runnableByUserLimit)
 			if app.IsAccepted() && (!runnableInQueue || !runnableByUserLimit) {
+				log.Log(log.SchedQueue).Debug("application is not runnable",
+					zap.String("queueName", sq.QueuePath),
+					zap.Bool("runnableInQueue", runnableInQueue),
+					zap.Bool("runnableByUserLimit", runnableByUserLimit),
+					zap.String("appID", app.ApplicationID),
+					zap.String("appStatus", app.CurrentState()))
 				continue
 			}
-			result := app.tryAllocate(headRoom, allowPreemption, preemptionDelay, &preemptAttemptsRemaining, iterator, fullIterator, getnode)
+			result := app.tryAllocate(headRoom, allowPreemption, preemptionDelay, &preemptAttemptsRemaining, iterator, fullIterator, getnode, reservationWithGuaranteedResource)
 			if result != nil {
 				log.Log(log.SchedQueue).Info("allocation found on queue",
 					zap.String("queueName", sq.QueuePath),
@@ -1440,9 +1480,11 @@ func (sq *Queue) TryAllocate(iterator func() NodeIterator, fullIterator func() N
 			}
 		}
 	} else {
+		log.Log(log.SchedQueue).Debug("parent queue found, descending into child queues",
+			zap.String("queueName", sq.QueuePath))
 		// process the child queues (filters out queues without pending requests)
 		for _, child := range sq.sortQueues() {
-			result := child.TryAllocate(iterator, fullIterator, getnode, allowPreemption)
+			result := child.TryAllocate(iterator, fullIterator, getnode, allowPreemption, reservationWithGuaranteedResource)
 			if result != nil {
 				return result
 			}
@@ -1509,6 +1551,8 @@ func (sq *Queue) GetQueueOutstandingRequests(total *[]*Allocation) {
 // Lock free call this all locks are taken when needed in called functions
 func (sq *Queue) TryReservedAllocate(iterator func() NodeIterator) *AllocationResult {
 	if sq.IsLeafQueue() {
+		log.Log(log.SchedQueue).Debug("looking for reservations in leaf queue",
+			zap.String("queueName", sq.QueuePath))
 		// skip if it has no reservations
 		reservedCopy := sq.GetReservedApps()
 		if len(reservedCopy) != 0 {
@@ -1516,6 +1560,10 @@ func (sq *Queue) TryReservedAllocate(iterator func() NodeIterator) *AllocationRe
 			headRoom := sq.getHeadRoom()
 			// process the apps
 			for appID, numRes := range reservedCopy {
+				log.Log(log.SchedQueue).Debug("found reservation(s) for application",
+					zap.String("queueName", sq.QueuePath),
+					zap.String("appID", appID),
+					zap.Int("reservations", numRes))
 				if numRes > 1 {
 					log.Log(log.SchedQueue).Debug("multiple reservations found for application trying to allocate one",
 						zap.String("appID", appID),
@@ -1529,11 +1577,16 @@ func (sq *Queue) TryReservedAllocate(iterator func() NodeIterator) *AllocationRe
 					return nil
 				}
 				if app.IsAccepted() && (!sq.canRunApp(appID) || !ugm.GetUserManager().CanRunApp(sq.QueuePath, appID, app.user)) {
+					log.Log(log.SchedQueue).Debug("application is not runnable in queue",
+						zap.String("queueName", sq.QueuePath),
+						zap.String("appID", appID),
+						zap.Int("reservations", numRes),
+						zap.String("appStatus", app.CurrentState()))
 					continue
 				}
 				result := app.tryReservedAllocate(headRoom, iterator)
 				if result != nil {
-					log.Log(log.SchedQueue).Info("reservation found for allocation found on queue",
+					log.Log(log.SchedQueue).Info("reservation found for allocation on queue",
 						zap.String("queueName", sq.QueuePath),
 						zap.String("appID", appID),
 						zap.Stringer("resultType", result.ResultType),
@@ -1773,9 +1826,18 @@ func (sq *Queue) FindEligiblePreemptionVictims(queuePath string, ask *Allocation
 	results := make(map[string]*QueuePreemptionSnapshot)
 	priorityMap := make(map[string]int64)
 
+	log.Log(log.SchedQueue).Debug("finding preemption victims",
+		zap.String("queuePath", queuePath),
+		zap.String("askApplicationID", ask.GetApplicationID()),
+		zap.String("askAllocationKey", ask.GetAllocationKey()))
+
 	// get the queue which acts as the fence boundary
 	fence := sq.findPreemptionFenceRoot(priorityMap, int64(ask.priority))
 	if fence == nil {
+		log.Log(log.SchedQueue).Debug("no preemption fence found, no preemption possible",
+			zap.String("queuePath", queuePath),
+			zap.String("ask", ask.String()))
+		// no fence found, no preemption possible
 		return nil
 	}
 
@@ -1826,6 +1888,7 @@ func (sq *Queue) createPreemptionSnapshot(cache map[string]*QueuePreemptionSnaps
 		GuaranteedResource: sq.guaranteedResource.Clone(),
 		PotentialVictims:   make([]*Allocation, 0),
 		AskQueue:           cache[askQueuePath],
+		Queue:              sq,
 	}
 	cache[sq.QueuePath] = snapshot
 	return snapshot
@@ -1839,45 +1902,128 @@ func (sq *Queue) findEligiblePreemptionVictims(results map[string]*QueuePreempti
 		return
 	}
 	if sq.IsLeafQueue() {
+		log.Log(log.SchedQueue).Debug("checking leaf queue for preemption",
+			zap.String("queuePath", sq.GetQueuePath()))
 		// leaf queue, skip queue if preemption is disabled
 		if sq.GetPreemptionPolicy() == policies.DisabledPreemptionPolicy {
+			log.Log(log.SchedQueue).Debug("skipping queue for preemption, preemption disabled",
+				zap.String("victimQueuePath", sq.GetQueuePath()),
+				zap.String("askQueuePath", queuePath),
+				zap.String("askAllocationKey", ask.GetAllocationKey()),
+				zap.Stringer("victimPreemptionPolicy", sq.GetPreemptionPolicy()))
 			return
 		}
 
 		victims := sq.createPreemptionSnapshot(results, queuePath)
 
-		// skip this queue if we are within guaranteed limits
-		remaining := results[sq.QueuePath].GetRemainingGuaranteedResource()
-		if remaining != nil && resources.StrictlyGreaterThanOrEquals(remaining, resources.Zero) {
-			return
+		var remaining *resources.Resource
+
+		if sq.GetPreemptionPolicy() == policies.FairSharePreemptionPolicy {
+			// For fair share: skip if queue is within the fair share limit
+			remaining = results[sq.QueuePath].GetRemainingFairShareResource()
+			if remaining != nil && !remaining.HasNegativeValue() {
+				return
+			}
+		} else {
+			// skip this queue if we are within guaranteed limits
+			remaining = results[sq.QueuePath].GetRemainingGuaranteedResource()
+			if remaining != nil && resources.StrictlyGreaterThanOrEquals(remaining, resources.Zero) {
+				log.Log(log.SchedQueue).Debug("skipping queue for preemption, within guaranteed limits",
+					zap.String("victimQueuePath", sq.QueuePath),
+					zap.Stringer("victimRemainingGuaranteedResource", remaining))
+				return
+			}
 		}
 
 		// walk allocations and select those that are equal or lower than current priority
 		for _, app := range sq.GetCopyOfApps() {
+			log.Log(log.SchedQueue).Debug("checking application for preemption",
+				zap.String("queuePath", sq.GetQueuePath()),
+				zap.String("appID", app.ApplicationID),
+				zap.Int("numAllocations", len(app.GetAllAllocations())))
 			for _, alloc := range app.GetAllAllocations() {
+				log.Log(log.SchedQueue).Debug("checking allocations for preemption",
+					zap.String("askQueuePath", queuePath),
+					zap.String("askApplicationID", ask.GetApplicationID()),
+					zap.String("askAllocationKey", ask.GetAllocationKey()),
+					zap.Int64("askAllocationPriority", askPriority),
+					zap.Stringer("askAllocationResource", ask.GetAllocatedResource()),
+					zap.String("victimQueuePath", sq.QueuePath),
+					zap.String("victimAppID", app.ApplicationID),
+					zap.String("victimAllocationID", alloc.GetAllocationKey()),
+					zap.Int32("victimAllocationPriority", alloc.GetPriority()),
+					zap.Stringer("victimAllocationResource", alloc.GetAllocatedResource()))
 				// at least any one of the ask resource type should match with potential victim
 				if !ask.GetAllocatedResource().MatchAny(alloc.GetAllocatedResource()) {
+					log.Log(log.SchedQueue).Debug("skipping victim allocation for preemption, no matching resource type",
+						zap.String("askQueuePath", queuePath),
+						zap.String("askApplicationID", ask.GetApplicationID()),
+						zap.String("askAllocationKey", ask.GetAllocationKey()),
+						zap.Stringer("askAllocationResource", ask.GetAllocatedResource()),
+						zap.String("victimQueuePath", sq.QueuePath),
+						zap.String("victimAppID", app.ApplicationID),
+						zap.String("victimAllocationID", alloc.GetAllocationKey()),
+						zap.Stringer("victimAllocationResource", alloc.GetAllocatedResource()))
 					continue
 				}
 
 				// skip tasks which require a specific node
 				if alloc.GetRequiredNode() != "" {
+					log.Log(log.SchedQueue).Debug("skipping allocation for preemption victim allocation has required node",
+						zap.String("askQueuePath", queuePath),
+						zap.String("askApplicationID", ask.GetApplicationID()),
+						zap.String("askAllocationKey", ask.GetAllocationKey()),
+						zap.Stringer("askAllocationResource", ask.GetAllocatedResource()),
+						zap.String("victimQueuePath", sq.QueuePath),
+						zap.String("victimAppID", app.ApplicationID),
+						zap.String("victimAllocationID", alloc.GetAllocationKey()),
+						zap.String("victimRequiredNode", alloc.GetRequiredNode()))
 					continue
 				}
 
 				// skip placeholder tasks which are marked released
 				if alloc.IsReleased() {
+					log.Log(log.SchedQueue).Debug("skipping allocation for preemption victim allocation has required node",
+						zap.String("askQueuePath", queuePath),
+						zap.String("askApplicationID", ask.GetApplicationID()),
+						zap.String("askAllocationKey", ask.GetAllocationKey()),
+						zap.Stringer("askAllocationResource", ask.GetAllocatedResource()),
+						zap.String("victimQueuePath", sq.QueuePath),
+						zap.String("victimAppID", app.ApplicationID),
+						zap.String("victimAllocationID", alloc.GetAllocationKey()),
+						zap.Bool("victimIsReleased", alloc.IsReleased()))
 					continue
 				}
 
 				// skip allocs which have already been preempted
 				if alloc.IsPreempted() {
+					log.Log(log.SchedQueue).Debug("skipping allocation for preemption victim allocation has required node",
+						zap.String("askQueuePath", queuePath),
+						zap.String("askApplicationID", ask.GetApplicationID()),
+						zap.String("askAllocationKey", ask.GetAllocationKey()),
+						zap.Stringer("askAllocationResource", ask.GetAllocatedResource()),
+						zap.String("victimQueuePath", sq.QueuePath),
+						zap.String("victimAppID", app.ApplicationID),
+						zap.String("victimAllocationID", alloc.GetAllocationKey()),
+						zap.Bool("victimIsPrempted", alloc.IsPreempted()))
 					continue
 				}
 
 				// if we have encountered a fence then all tasks are eligible for preemption
 				// otherwise the task is a candidate if its priority is less than or equal to the ask priority
 				if fenced || int64(alloc.GetPriority()) <= askPriority {
+					log.Log(log.SchedQueue).Debug("adding allocation as potential preemption victim as fenced or lower priority",
+						zap.String("askQueuePath", queuePath),
+						zap.String("askApplicationID", ask.GetApplicationID()),
+						zap.String("askAllocationKey", ask.GetAllocationKey()),
+						zap.Int64("askAllocationPriority", askPriority),
+						zap.Stringer("askAllocationResource", ask.GetAllocatedResource()),
+						zap.String("victimQueuePath", sq.QueuePath),
+						zap.String("victimAppID", app.ApplicationID),
+						zap.String("victimAllocationID", alloc.GetAllocationKey()),
+						zap.Int32("victimAllocationPriority", alloc.GetPriority()),
+						zap.Bool("fenced", fenced))
+					// add to potential victim list
 					victims.PotentialVictims = append(victims.PotentialVictims, alloc)
 				}
 			}
@@ -1885,11 +2031,18 @@ func (sq *Queue) findEligiblePreemptionVictims(results map[string]*QueuePreempti
 
 		// remove from potential victim list if there are no potential victims
 		if len(victims.PotentialVictims) == 0 {
+			log.Log(log.SchedQueue).Debug("removing queue from preemption results, no potential victims found",
+				zap.String("victimQueuePath", sq.GetQueuePath()),
+				zap.String("askQueuePath", queuePath),
+				zap.String("askAllocationKey", ask.GetAllocationKey()))
+			// no potential victims, remove from results
 			delete(results, sq.QueuePath)
 		}
 	} else {
 		// parent queue, walk child queues and evaluate
 		for _, child := range sq.GetCopyOfChildren() {
+			log.Log(log.SchedQueue).Debug("found parent queue for preemption",
+				zap.String("queuePath", sq.GetQueuePath()))
 			childFenced := false
 			childPriority, ok := priorityMap[child.QueuePath]
 			if !ok {
@@ -1898,14 +2051,32 @@ func (sq *Queue) findEligiblePreemptionVictims(results map[string]*QueuePreempti
 				if policy == policies.FencePriorityPolicy {
 					// if the queue offset is greater than the ask priority, then none of the child subtasks may be preempted
 					if int64(offset) > askPriority {
+						log.Log(log.SchedQueue).Debug("skipping queue for preemption, fence priority higher than ask",
+							zap.String("victimQueuePath", child.QueuePath),
+							zap.String("askQueuePath", queuePath),
+							zap.String("askAllocationKey", ask.GetAllocationKey()),
+							zap.Int64("askAllocationPriority", askPriority),
+							zap.Int32("victimQueuePriorityOffset", offset))
 						continue
 					}
 
 					// all tasks in subtree can be preempted, so mark fenced as true
+					log.Log(log.SchedQueue).Debug("all tasks in subtree can be preempted, fence found",
+						zap.String("victimQueuePath", child.QueuePath),
+						zap.String("askQueuePath", queuePath),
+						zap.String("askAllocationKey", ask.GetAllocationKey()),
+						zap.Int64("askAllocationPriority", askPriority))
 					childFenced = true
 					childPriority = askPriority
 				} else {
 					// queue is not fenced, evaluate child by subtracting the offset from the ask when traversing downward
+					log.Log(log.SchedQueue).Debug("adjusting priority for preemption evaluation for child queues",
+						zap.String("victimQueuePath", child.QueuePath),
+						zap.String("askQueuePath", queuePath),
+						zap.String("askAllocationKey", ask.GetAllocationKey()),
+						zap.Int64("askAllocationPriority", askPriority),
+						zap.Int32("victimQueuePriorityOffset", offset))
+					// subtract the offset as we are going down the tree
 					childPriority = askPriority - int64(offset)
 				}
 			}
@@ -1927,10 +2098,19 @@ func (sq *Queue) findPreemptionFenceRoot(priorityMap map[string]int64, currentPr
 	default:
 		currentPriority += int64(offset)
 	}
+	log.Log(log.SchedQueue).Debug("setting current priority for queue for preemption",
+		zap.String("queuePath", sq.QueuePath),
+		zap.Int64("currentPriority", currentPriority))
 	priorityMap[sq.QueuePath] = currentPriority
 
 	// Return this queue as fence root if: 1. FencePreemptionPolicy is set 2. root queue 3. allocations in the queue reached maximum resources
 	if sq.parent == nil || sq.GetPreemptionPolicy() == policies.FencePreemptionPolicy || resources.Equals(sq.maxResource, sq.allocatedResource) {
+		log.Log(log.SchedQueue).Debug("preemption fence found",
+			zap.String("queuePath", sq.QueuePath),
+			zap.Int64("priority", currentPriority),
+			zap.Stringer("policy", sq.GetPreemptionPolicy()),
+			zap.Stringer("maxResource", sq.maxResource),
+			zap.Stringer("allocatedResource", sq.allocatedResource))
 		return sq
 	}
 	return sq.parent.findPreemptionFenceRoot(priorityMap, currentPriority)
