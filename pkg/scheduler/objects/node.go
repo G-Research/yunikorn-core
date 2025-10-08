@@ -304,7 +304,16 @@ func (sn *Node) GetUtilizedResource() *resources.Resource {
 func (sn *Node) FitInNode(resRequest *resources.Resource) bool {
 	sn.RLock()
 	defer sn.RUnlock()
-	return sn.totalResource.FitIn(resRequest)
+	ok := sn.totalResource.FitIn(resRequest)
+	if !ok {
+		log.Log(log.SchedNode).Debug(
+			"cannot fit requested resources within the node",
+			zap.String("nodeID", sn.NodeID),
+			zap.Stringer("requested", resRequest),
+			zap.Stringer("nodeTotalavailable", sn.totalResource),
+		)
+	}
+	return ok
 }
 
 // Remove the allocation to the node.
@@ -331,7 +340,10 @@ func (sn *Node) RemoveAllocation(allocationKey string) *Allocation {
 			zap.String("targetNode", sn.NodeID))
 		return alloc
 	}
-
+	// allocation not found
+	log.Log(log.SchedNode).Debug("allocation to remove not found on node",
+		zap.String("allocationKey", allocationKey),
+		zap.String("nodeID", sn.NodeID))
 	return nil
 }
 
@@ -420,7 +432,18 @@ func (sn *Node) ReplaceAllocation(allocationKey string, replace *Allocation, del
 func (sn *Node) CanAllocate(res *resources.Resource) bool {
 	sn.RLock()
 	defer sn.RUnlock()
-	return sn.availableResource.FitIn(res)
+
+	ok := sn.availableResource.FitIn(res)
+	if !ok {
+		log.Log(log.SchedNode).Debug(
+			"cannot allocate to node due to insufficient available resources",
+			zap.String("nodeID", sn.NodeID),
+			zap.Stringer("requested", res),
+			zap.Stringer("available", sn.availableResource),
+		)
+	}
+	//  && sn.schedulable??
+	return ok
 }
 
 // Checking pre-conditions in the shim for an allocation.
@@ -485,7 +508,6 @@ func (sn *Node) preAllocateCheck(res *resources.Resource, allocationKey string) 
 
 	sn.RLock()
 	defer sn.RUnlock()
-	// returns true/false based on if the request fits in what we have calculated
 	return sn.availableResource.FitIn(res)
 }
 

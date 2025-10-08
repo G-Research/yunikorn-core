@@ -19,6 +19,7 @@
 package objects
 
 import (
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/apache/yunikorn-core/pkg/common"
 	"github.com/apache/yunikorn-core/pkg/common/configs"
+	"github.com/apache/yunikorn-core/pkg/log"
 	"github.com/apache/yunikorn-core/pkg/common/resources"
 	"github.com/apache/yunikorn-core/pkg/common/security"
 	"github.com/apache/yunikorn-core/pkg/events"
@@ -50,6 +52,15 @@ const (
 	instType1 = "itype-1"
 	testgroup = "testgroup"
 )
+
+func init() {
+	// Enable debug logging for tests if YUNIKORN_TEST_DEBUG environment variable is set
+	if os.Getenv("YUNIKORN_TEST_DEBUG") == "true" {
+		log.UpdateLoggingConfig(map[string]string{
+			"log.level": "DEBUG",
+		})
+	}
+}
 
 // Create the root queue, base for all testing
 func createRootQueue(maxRes map[string]string) (*Queue, error) {

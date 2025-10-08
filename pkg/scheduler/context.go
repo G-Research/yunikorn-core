@@ -83,6 +83,7 @@ func NewClusterContext(rmID, policyGroup string, config []byte) (*ClusterContext
 	// If reservation is turned off set the reservation delay to the maximum duration defined.
 	// The time package does not export maxDuration so use the equivalent from the math package.
 	if cc.reservationDisabled {
+		log.Log(log.SchedContext).Info("Reservation is disabled, setting reservation delay to max duration")
 		objects.SetReservationDelay(math.MaxInt64)
 	}
 	err = cc.updateSchedulerConfig(conf, rmID)
@@ -104,6 +105,7 @@ func newClusterContext() *ClusterContext {
 	// If reservation is turned off set the reservation delay to the maximum duration defined.
 	// The time package does not export maxDuration so use the equivalent from the math package.
 	if cc.reservationDisabled {
+		log.Log(log.SchedContext).Info("Reservation is disabled, setting reservation delay to max duration")
 		objects.SetReservationDelay(math.MaxInt64)
 	}
 	return cc
@@ -121,22 +123,29 @@ func (cc *ClusterContext) schedule() bool {
 	// schedule each partition defined in the cluster
 	activity := false
 	for _, psc := range cc.GetPartitionMapClone() {
+		log.Log(log.SchedContext).Debug("scheduling partition", zap.String("partitionName", psc.Name))
 		// if there are no resources in the partition just skip
 		if psc.root.GetMaxResource() == nil {
+			log.Log(log.SchedContext).Debug("Root queue has nil max resource",
+				zap.String("partitionName", psc.Name))
 			continue
 		}
 		// a stopped partition does not allocate
 		if psc.isStopped() {
+			log.Log(log.SchedContext).Debug("Partition is stopped, skipping scheduling", zap.String("partitionName", psc.Name))
 			continue
 		}
 		// try reservations first
 		schedulingStart := time.Now()
+		log.Log(log.SchedContext).Debug("Trying to schedule reserved allocations", zap.String("partitionName", psc.Name))
 		result := psc.tryReservedAllocate()
 		if result == nil {
 			// placeholder replacement second
+			log.Log(log.SchedContext).Debug("Trying to schedule placeholder replacements", zap.String("partitionName", psc.Name))
 			result = psc.tryPlaceholderAllocate()
 			// nothing reserved that can be allocated try normal allocate
 			if result == nil {
+				log.Log(log.SchedContext).Debug("Trying to schedule new allocations as nothing reserved can be allocated", zap.String("partitionName", psc.Name))
 				result = psc.tryAllocate()
 			}
 		}

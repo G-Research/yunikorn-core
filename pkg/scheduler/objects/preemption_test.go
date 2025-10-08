@@ -90,7 +90,7 @@ func TestCheckPreconditions(t *testing.T) {
 		return node
 	}
 	preemptionAttemptsRemaining := 1
-	result := app.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 2}), true, 1*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode)
+	result := app.tryAllocate(resources.NewResourceFromMap(map[string]resources.Quantity{"first": 2}), true, 1*time.Second, &preemptionAttemptsRemaining, iterator, iterator, getNode, false)
 	assert.Check(t, result == nil, "unexpected result")
 	assertAllocationLog(t, ask)
 	ask.preemptCheckTime = time.Now().Add(-1 * time.Minute)
@@ -378,7 +378,9 @@ func TestTryPreemption_NodeWithCapacityLesserThanAsk(t *testing.T) {
 	assert.Equal(t, ok, false, "no victims found")
 	assert.Check(t, !alloc1.IsPreempted(), "alloc1 preempted")
 	assert.Check(t, !alloc2.IsPreempted(), "alloc2 preempted")
-	assert.Equal(t, len(ask3.GetAllocationLog()), 0)
+	ask3Log := ask3.GetAllocationLog()
+	assert.Equal(t, len(ask3Log), 1)
+	assert.Equal(t, ask3Log[0].Message, common.PreemptionNoCandidates)
 }
 
 // TestTryPreemptionOnNodeWithOGParentAndUGPreemptor Test try preemption on node with simple queue hierarchy. Since Node doesn't have enough resources to accomodate, preemption happens because of node resource constraint.

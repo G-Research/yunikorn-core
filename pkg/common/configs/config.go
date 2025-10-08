@@ -52,11 +52,20 @@ type PartitionConfig struct {
 	Limits         []Limit                   `yaml:",omitempty" json:",omitempty"`
 	Preemption     PartitionPreemptionConfig `yaml:",omitempty" json:",omitempty"`
 	NodeSortPolicy NodeSortingPolicy         `yaml:",omitempty" json:",omitempty"`
+	Scheduler      PartitionSchedulerConfig  `yaml:",omitempty" json:",omitempty"`
 }
 
 // The partition preemption configuration
 type PartitionPreemptionConfig struct {
-	Enabled *bool `yaml:",omitempty" json:",omitempty"`
+	Enabled                 *bool  `yaml:",omitempty" json:",omitempty"`
+	PreemptAttemptFrequency string `yaml:",omitempty" json:",omitempty"` // Duration string for how often preemption attempts are made
+}
+
+// The partition scheduler configuration for scheduling behavior
+type PartitionSchedulerConfig struct {
+	ReservationTTL                 string `yaml:",omitempty" json:",omitempty"` // Duration string like "10s", "2m", etc.
+	ReservationDelay               string `yaml:",omitempty" json:",omitempty"` // Duration string like "2s", "5s", etc.
+	RequireGuaranteeForReservation *bool  `yaml:",omitempty" json:",omitempty"` // Require guarantee before allowing reservations
 }
 
 // The queue object for each queue:

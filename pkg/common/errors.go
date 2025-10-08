@@ -40,4 +40,5 @@ const (
 	PreemptionShortfall           = "Preemption helped but short of resources"
 	PreemptionDoesNotHelp         = "Preemption does not help"
 	NoVictimForRequiredNode       = "No fit on required node, preemption does not help"
+	PreemptionNoCandidates        = "No preemption candidates found"
 )

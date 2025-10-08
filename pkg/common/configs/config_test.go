@@ -641,6 +641,32 @@ partitions:
     queues:
       - name: root
 `
+
+	preemptAttemptFrequencyCorrect := `
+partitions:
+  - name: default
+    queues:
+      - name: root
+    preemption:
+      enabled: false
+      preemptattemptfrequency: "1s"
+  - name: "partition-0"
+    queues:
+      - name: root
+`
+
+	preemptAttemptFrequencyIncorrect := `
+partitions:
+  - name: default
+    queues:
+      - name: root
+    preemption:
+      enabled: false
+      preemptattemptfrequency: "blah"
+  - name: "partition-0"
+    queues:
+      - name: root
+`
 	// validate the config and check after the update
 	conf, err := CreateConfig(data)
 	assert.NilError(t, err, "should expect no error")
@@ -653,6 +679,92 @@ partitions:
 	conf, err = CreateConfig(dataDisabled)
 	assert.NilError(t, err, "should expect no error")
 	assert.Assert(t, !*conf.Partitions[0].Preemption.Enabled, "preemption should be disabled")
+
+	conf, err = CreateConfig(preemptAttemptFrequencyCorrect)
+	assert.NilError(t, err, "should expect no error")
+	assert.Assert(t, !*conf.Partitions[0].Preemption.Enabled, "preemption should be disabled")
+	assert.Assert(t, conf.Partitions[0].Preemption.PreemptAttemptFrequency == "1s", "preemption should be disabled")
+
+	_, err = CreateConfig(preemptAttemptFrequencyIncorrect)
+	assert.ErrorContains(t, err, "invalid PreemptAttemptFrequency")
+}
+
+func TestPartitionSchedulerConfig(t *testing.T) {
+	data := `
+partitions:
+  - name: default
+    queues:
+      - name: root
+  - name: "partition-0"
+    queues:
+      - name: root
+`
+	reservationTTLSet := `
+partitions:
+  - name: default
+    queues:
+      - name: root
+    scheduler:
+      reservationttl: "10s"
+  - name: "partition-0"
+    queues:
+      - name: root
+`
+	incorrectReservationTTL := `
+partitions:
+  - name: default
+    queues:
+      - name: root
+    scheduler:
+      reservationttl: "blah"
+  - name: "partition-0"
+    queues:
+      - name: root
+`
+
+	reservationDelaySet := `
+partitions:
+  - name: default
+    queues:
+      - name: root
+    scheduler:
+      reservationdelay: "1s"
+  - name: "partition-0"
+    queues:
+      - name: root
+`
+
+	incorrectReservationDelaySet := `
+partitions:
+  - name: default
+    queues:
+      - name: root
+    scheduler:
+      reservationdelay: "foo"
+  - name: "partition-0"
+    queues:
+      - name: root
+`
+	// validate the config and check after the update
+	conf, err := CreateConfig(data)
+	assert.NilError(t, err, "should expect no error")
+	assert.Assert(t, conf.Partitions[0].Scheduler.ReservationTTL == "", "default should be nil")
+	assert.Assert(t, conf.Partitions[0].Scheduler.ReservationDelay == "", "default should be nil")
+	assert.Assert(t, conf.Partitions[0].Scheduler.RequireGuaranteeForReservation == nil, "default should be nil")
+
+	conf, err = CreateConfig(reservationTTLSet)
+	assert.NilError(t, err, "should expect no error")
+	assert.Assert(t, conf.Partitions[0].Scheduler.ReservationTTL == "10s", "should be set to 10s")
+
+	_, err = CreateConfig(incorrectReservationTTL)
+	assert.ErrorContains(t, err, "invalid ReservationTTL")
+
+	conf, err = CreateConfig(reservationDelaySet)
+	assert.NilError(t, err, "should expect no error")
+	assert.Assert(t, conf.Partitions[0].Scheduler.ReservationDelay == "1s", "preemption should be disabled")
+
+	_, err = CreateConfig(incorrectReservationDelaySet)
+	assert.ErrorContains(t, err, "invalid ReservationDelay")
 }
 
 func TestParseRule(t *testing.T) {
@@ -815,7 +927,7 @@ partitions:
     placementrules:
       - name: User
         filter:
-          users: 
+          users:
             - 99test
 `
 	// validate the config and check after the update
@@ -963,7 +1075,7 @@ partitions:
       - name: root
         limits:
           - limit:
-            users: 
+            users:
             - user1
             maxresources: {memory: 10000, vcore: 10}
             maxapplications: 5
@@ -977,7 +1089,7 @@ partitions:
           - name: level1
             limits:
               - limit:
-                users: 
+                users:
                 - subuser
                 maxapplications: 1
 `
@@ -1036,7 +1148,7 @@ partitions:
       - name: root
         limits:
           - limit:
-            users: 
+            users:
             - user1
             maxresources: {memory: 10000, vcore: 10}
             maxapplications: 5
@@ -1056,7 +1168,7 @@ partitions:
                 {memory: 10000, vcore: 10}
             limits:
               - limit:
-                users: 
+                users:
                 - test
                 maxapplications: 1000
                 maxresources: {memory: 10000, vcore: 10}
@@ -1073,7 +1185,7 @@ partitions:
       - name: root
         limits:
           - limit:
-            users: 
+            users:
             - user1
             maxresources: {memory: 10000, vcore: 10}
             maxapplications: 5
@@ -1093,7 +1205,7 @@ partitions:
                 {memory: 10000, vcore: 10}
             limits:
               - limit:
-                users: 
+                users:
                 - test
                 maxresources: {memory: 10000, vcore: 10}
 `
@@ -1109,7 +1221,7 @@ partitions:
       - name: root
         limits:
           - limit:
-            users: 
+            users:
             - user1
             maxresources: {memory: 10000, vcore: 10}
             maxapplications: 5
@@ -1128,7 +1240,7 @@ partitions:
                 {memory: 10000, vcore: 10}
             limits:
               - limit:
-                users: 
+                users:
                 - test
                 maxresources: {memory: 10000, vcore: 10}
                 maxapplications: 100
@@ -1146,7 +1258,7 @@ partitions:
         maxapplications: 50
         limits:
           - limit:
-            users: 
+            users:
             - user1
             maxresources: {memory: 10000, vcore: 10}
             maxapplications: 5
@@ -1166,7 +1278,7 @@ partitions:
                 {memory: 10000, vcore: 10}
             limits:
               - limit:
-                users: 
+                users:
                 - test
                 maxapplications: 5
                 maxresources: {memory: 100000, vcore: 100}
@@ -1184,7 +1296,7 @@ partitions:
         maxapplications: 50
         limits:
           - limit:
-            users: 
+            users:
             - user1
             maxresources: {memory: 10000, vcore: 10}
             maxapplications: 5
@@ -1204,7 +1316,7 @@ partitions:
                 {memory: parseFailed, vcore: 10}
             limits:
               - limit:
-                users: 
+                users:
                 - test
                 maxapplications: 5
                 maxresources: {memory: 100000, vcore: 100}
@@ -1657,7 +1769,7 @@ partitions:
         maxapplications: 500
         limits:
           - limit:
-            users: 
+            users:
             - user1
             maxresources: {memory: 10000, vcore: 10}
             maxapplications: 5
@@ -1677,7 +1789,7 @@ partitions:
                 {memory: 10000, vcore: 10}
             limits:
               - limit:
-                users: 
+                users:
                 - user1
                 groups:
                 - prod
@@ -1774,7 +1886,7 @@ partitions:
         maxapplications: 3000
         limits:
           - limit:
-            users: 
+            users:
             - user1
             maxresources: {memory: 10000, vcore: 10000}
             maxapplications: 500
@@ -1795,7 +1907,7 @@ partitions:
                 {memory: 10000, vcore: 1000}
             limits:
               - limit:
-                users: 
+                users:
                 - user1
                 maxapplications: 50
                 maxresources: {memory: 1000, vcore: 100}
@@ -1809,7 +1921,7 @@ partitions:
                     {memory: 10000, vcore: 1000}
                 limits:
                   - limit:
-                    users: 
+                    users:
                     - user1
                     maxapplications: %d
                     maxresources: %s
@@ -1822,7 +1934,7 @@ partitions:
                 {memory: 10000, vcore: 1000}
             limits:
               - limit:
-                users: 
+                users:
                 - user1
                 maxapplications: 10
                 maxresources: {memory: 1000, vcore: 100}
@@ -1839,7 +1951,7 @@ partitions:
         maxapplications: 3000
         limits:
           - limit:
-            users: 
+            users:
             - user1
             maxresources: {memory: 10000, vcore: 10000}
             maxapplications: 500
@@ -1868,7 +1980,7 @@ partitions:
                     %s
                 limits:
                   - limit:
-                    users: 
+                    users:
                     - user1
                     maxapplications: %d
                     maxresources: %s
@@ -1881,7 +1993,7 @@ partitions:
                 {memory: 10000, vcore: 1000}
             limits:
               - limit:
-                users: 
+                users:
                 - user1
                 maxapplications: 10
                 maxresources: {memory: 1000, vcore: 100}
@@ -1921,7 +2033,7 @@ partitions:
         maxapplications: 3000
         limits:
           - limit:
-            users: 
+            users:
             - "*"
             maxresources: {memory: 10000, vcore: 10000}
             maxapplications: 500
@@ -1943,7 +2055,7 @@ partitions:
                     {memory: 100000, vcore: 1000}
                 limits:
                   - limit:
-                    users: 
+                    users:
                     - "*"
                     maxapplications: 90
                     maxresources: {memory: 90000, vcore: 100}
@@ -1956,7 +2068,7 @@ partitions:
                 {memory: 10000, vcore: 1000}
             limits:
               - limit:
-                users: 
+                users:
                 - user1
                 maxapplications: 10
                 maxresources: {memory: 1000, vcore: 100}
@@ -1975,7 +2087,7 @@ partitions:
         maxapplications: 3000
         limits:
           - limit:
-            groups: 
+            groups:
             - group1
             maxresources: {memory: 10000, vcore: 10000}
             maxapplications: 500
@@ -1996,7 +2108,7 @@ partitions:
                 {memory: 10000, vcore: 1000}
             limits:
               - limit:
-                groups: 
+                groups:
                 - group1
                 maxapplications: 50
                 maxresources: {memory: 1000, vcore: 100}
@@ -2010,7 +2122,7 @@ partitions:
                     {memory: 10000, vcore: 1000}
                 limits:
                   - limit:
-                    groups: 
+                    groups:
                     - group1
                     maxapplications: %d
                     maxresources: %s
@@ -2023,7 +2135,7 @@ partitions:
                 {memory: 10000, vcore: 1000}
             limits:
               - limit:
-                groups: 
+                groups:
                 - group1
                 maxapplications: 10
                 maxresources: {memory: 1000, vcore: 100}
@@ -2042,7 +2154,7 @@ partitions:
         maxapplications: 3000
         limits:
           - limit:
-            groups: 
+            groups:
             - group1
             maxresources: {memory: 10000, vcore: 10000}
             maxapplications: 500
@@ -2071,7 +2183,7 @@ partitions:
                     %s
                 limits:
                   - limit:
-                    groups: 
+                    groups:
                     - group1
                     maxapplications: %d
                     maxresources: %s
@@ -2084,7 +2196,7 @@ partitions:
                 {memory: 10000, vcore: 1000}
             limits:
               - limit:
-                groups: 
+                groups:
                 - group1
                 maxapplications: 10
                 maxresources: {memory: 1000, vcore: 100}
@@ -2122,12 +2234,12 @@ partitions:
         maxapplications: 3000
         limits:
           - limit:
-            groups: 
+            groups:
             - test
             maxresources: {memory: 10000, vcore: 10000}
             maxapplications: 500
           - limit:
-            groups: 
+            groups:
             - "*"
             maxresources: {memory: 10000, vcore: 10000}
             maxapplications: 500
@@ -2149,17 +2261,17 @@ partitions:
                     {memory: 100000, vcore: 1000}
                 limits:
                   - limit:
-                    groups: 
+                    groups:
                     - "test"
                     maxapplications: 9
                     maxresources: {memory: 900, vcore: 100}
                   - limit:
-                    groups: 
+                    groups:
                     - "*"
                     maxapplications: 90
                     maxresources: {memory: 90000, vcore: 100}
                   - limit:
-                    users: 
+                    users:
                     - "*"
                     maxapplications: 9
                     maxresources: {memory: 900, vcore: 100}
@@ -2172,7 +2284,7 @@ partitions:
                 {memory: 10000, vcore: 1000}
             limits:
               - limit:
-                users: 
+                users:
                 - user1
                 maxapplications: 10
                 maxresources: {memory: 1000, vcore: 100}

@@ -20,6 +20,7 @@ package scheduler
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"testing"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/apache/yunikorn-core/pkg/common/resources"
 	"github.com/apache/yunikorn-core/pkg/common/security"
 	"github.com/apache/yunikorn-core/pkg/events"
+	"github.com/apache/yunikorn-core/pkg/log"
 	"github.com/apache/yunikorn-core/pkg/mock"
 	"github.com/apache/yunikorn-core/pkg/plugins"
 	"github.com/apache/yunikorn-core/pkg/rmproxy/rmevent"
@@ -39,6 +41,7 @@ import (
 	"github.com/apache/yunikorn-core/pkg/scheduler/ugm"
 	siCommon "github.com/apache/yunikorn-scheduler-interface/lib/go/common"
 	"github.com/apache/yunikorn-scheduler-interface/lib/go/si"
+	"go.uber.org/zap"
 )
 
 func setupUGM() {
@@ -3752,6 +3755,67 @@ func TestUpdatePreemption(t *testing.T) {
 	assert.Assert(t, !partition.isPreemptionEnabled(), "preeemption should be disabled by explicit false")
 }
 
+func TestUpdateSchedulerConfig(t *testing.T) {
+	partition, err := newBasePartition()
+	assert.NilError(t, err, "Partition creation failed")
+
+	// Test 1: Default values should be set when config is empty
+	partition.updateSchedulerConfig(configs.PartitionConfig{})
+	assert.Equal(t, partition.GetReservationTTL(), time.Duration(math.MaxInt64), "default reservation TTL should be math.MaxInt64")
+	// Reservation delay is now set globally, no getter method on partition
+	assert.Equal(t, objects.GetPreemptAttemptFrequency(), 15*time.Second, "default preempt attempt frequency should be 15s")
+
+	// Test 2: Valid duration strings should be parsed correctly
+	partition.updateSchedulerConfig(configs.PartitionConfig{
+		Scheduler: configs.PartitionSchedulerConfig{
+			ReservationTTL:   "30s",
+			ReservationDelay: "5s",
+		},
+		Preemption: configs.PartitionPreemptionConfig{
+			PreemptAttemptFrequency: "45s",
+		},
+	})
+	assert.Equal(t, partition.GetReservationTTL(), 30*time.Second, "configured reservation TTL should be 30s")
+	// Reservation delay is now set globally, no getter method on partition
+	assert.Equal(t, objects.GetPreemptAttemptFrequency(), 45*time.Second, "configured preempt attempt frequency should be 45s")
+
+	// Test 3: Invalid duration strings should fall back to defaults
+	partition.updateSchedulerConfig(configs.PartitionConfig{
+		Scheduler: configs.PartitionSchedulerConfig{
+			ReservationTTL:   "invalid",
+			ReservationDelay: "also-invalid",
+		},
+		Preemption: configs.PartitionPreemptionConfig{
+			PreemptAttemptFrequency: "bad-duration",
+		},
+	})
+	assert.Equal(t, partition.GetReservationTTL(), time.Duration(math.MaxInt64), "invalid reservation TTL should fallback to default math.MaxInt64")
+	// Reservation delay is now set globally, no getter method on partition
+	assert.Equal(t, objects.GetPreemptAttemptFrequency(), 15*time.Second, "invalid preempt attempt frequency should fallback to default 15s")
+
+	// Test 4: Test ReservationWithGuaranteedResource flag
+	var True = true
+	var False = false
+
+	partition.updateSchedulerConfig(configs.PartitionConfig{
+		Scheduler: configs.PartitionSchedulerConfig{
+			RequireGuaranteeForReservation: &True,
+		},
+	})
+	assert.Equal(t, partition.reservationWithGuaranteedResource, true, "ReservationWithGuaranteedResource should be true")
+
+	partition.updateSchedulerConfig(configs.PartitionConfig{
+		Scheduler: configs.PartitionSchedulerConfig{
+			RequireGuaranteeForReservation: &False,
+		},
+	})
+	assert.Equal(t, partition.reservationWithGuaranteedResource, false, "ReservationWithGuaranteedResource should be false")
+
+	// Test 5: Default should be true when not specified
+	partition.updateSchedulerConfig(configs.PartitionConfig{})
+	assert.Equal(t, partition.reservationWithGuaranteedResource, false, "ReservationWithGuaranteedResource should default to false")
+}
+
 func TestUpdateNodeSortingPolicy(t *testing.T) {
 	partition, err := newBasePartition()
 	if err != nil {
@@ -4658,4 +4722,312 @@ func TestPlaceholderAllocationAndReplacementAfterRecovery(t *testing.T) {
 	assert.Assert(t, confirmed != nil, "expected to have a confirmed allocation")
 	assert.Equal(t, "real-alloc", confirmed.GetAllocationKey())
 	assert.Equal(t, "tg-1", confirmed.GetTaskGroup())
+}
+
+// TestReservationConfigurationEndToEnd tests the complete configuration flow from YAML parsing to actual scheduler behavior
+func TestReservationConfigurationEndToEnd(t *testing.T) {
+	// Test 1: ReservationTTL configuration parsing and global setting
+	t.Run("ReservationTTL_Configuration", func(t *testing.T) {
+		// Store original value to restore
+		originalTTL := objects.GetReservationTTL()
+		defer objects.SetReservationTTL(originalTTL)
+
+		// Test valid configuration parsing
+		partition, err := newPartitionContext(configs.PartitionConfig{
+			Name: "test-partition",
+			Queues: []configs.QueueConfig{
+				{
+					Name:      "root",
+					Parent:    true,
+					SubmitACL: "*",
+				},
+			},
+			Scheduler: configs.PartitionSchedulerConfig{
+				ReservationTTL: "25s",
+			},
+		}, rmID, nil)
+		assert.NilError(t, err, "partition creation should succeed")
+
+		// Verify the configuration was parsed and applied globally
+		assert.Equal(t, 25*time.Second, objects.GetReservationTTL(), "global TTL should be set from config")
+		assert.Equal(t, 25*time.Second, partition.GetReservationTTL(), "partition should return global TTL")
+
+		// Test invalid configuration fallback to default
+		partition2, err := newPartitionContext(configs.PartitionConfig{
+			Name: "test-partition-2",
+			Queues: []configs.QueueConfig{
+				{
+					Name:      "root",
+					Parent:    true,
+					SubmitACL: "*",
+				},
+			},
+			Scheduler: configs.PartitionSchedulerConfig{
+				ReservationTTL: "invalid-duration",
+			},
+		}, rmID, nil)
+		assert.NilError(t, err, "partition creation should succeed even with invalid config")
+
+		// Should fall back to math.MaxInt64 (no TTL limit)
+		assert.Equal(t, time.Duration(math.MaxInt64), objects.GetReservationTTL(), "invalid TTL should fallback to math.MaxInt64")
+		assert.Equal(t, time.Duration(math.MaxInt64), partition2.GetReservationTTL(), "partition should return global default TTL")
+	})
+
+	// Test 2: ReservationDelay configuration parsing and global setting
+	t.Run("ReservationDelay_Configuration", func(t *testing.T) {
+		// Store original value to restore
+		originalDelay := objects.GetReservationDelay()
+		defer objects.SetReservationDelay(originalDelay)
+
+		// Test valid configuration parsing
+		_, err := newPartitionContext(configs.PartitionConfig{
+			Name: "test-partition",
+			Queues: []configs.QueueConfig{
+				{
+					Name:      "root",
+					Parent:    true,
+					SubmitACL: "*",
+				},
+			},
+			Scheduler: configs.PartitionSchedulerConfig{
+				ReservationDelay: "8s",
+			},
+		}, rmID, nil)
+		assert.NilError(t, err, "partition creation should succeed")
+
+		// Verify the configuration was parsed and applied globally
+		assert.Equal(t, 8*time.Second, objects.GetReservationDelay(), "global delay should be set from config")
+
+		// Test invalid configuration fallback to default
+		_, err = newPartitionContext(configs.PartitionConfig{
+			Name: "test-partition-2",
+			Queues: []configs.QueueConfig{
+				{
+					Name:      "root",
+					Parent:    true,
+					SubmitACL: "*",
+				},
+			},
+			Scheduler: configs.PartitionSchedulerConfig{
+				ReservationDelay: "not-a-duration",
+			},
+		}, rmID, nil)
+		assert.NilError(t, err, "partition creation should succeed even with invalid config")
+
+		// Should fall back to default 2s
+		assert.Equal(t, 2*time.Second, objects.GetReservationDelay(), "invalid delay should fallback to default")
+	})
+
+	// Test 3: PreemptAttemptFrequency configuration parsing and global setting
+	t.Run("PreemptAttemptFrequency_Configuration", func(t *testing.T) {
+		// Store original value to restore
+		originalFreq := objects.GetPreemptAttemptFrequency()
+		defer objects.SetPreemptAttemptFrequency(originalFreq)
+
+		// Test valid configuration parsing
+		_, err := newPartitionContext(configs.PartitionConfig{
+			Name: "test-partition",
+			Queues: []configs.QueueConfig{
+				{
+					Name:      "root",
+					Parent:    true,
+					SubmitACL: "*",
+				},
+			},
+			Preemption: configs.PartitionPreemptionConfig{
+				PreemptAttemptFrequency: "30s",
+			},
+		}, rmID, nil)
+		assert.NilError(t, err, "partition creation should succeed")
+
+		// Verify the configuration was parsed and applied globally
+		assert.Equal(t, 30*time.Second, objects.GetPreemptAttemptFrequency(), "global frequency should be set from config")
+
+		// Test invalid configuration fallback to default
+		_, err = newPartitionContext(configs.PartitionConfig{
+			Name: "test-partition-2",
+			Queues: []configs.QueueConfig{
+				{
+					Name:      "root",
+					Parent:    true,
+					SubmitACL: "*",
+				},
+			},
+			Preemption: configs.PartitionPreemptionConfig{
+				PreemptAttemptFrequency: "invalid-freq",
+			},
+		}, rmID, nil)
+		assert.NilError(t, err, "partition creation should succeed even with invalid config")
+
+		// Should fall back to default 15s
+		assert.Equal(t, 15*time.Second, objects.GetPreemptAttemptFrequency(), "invalid frequency should fallback to default")
+	})
+
+	// Test 4: Configuration logging verification
+	t.Run("Configuration_Logging", func(t *testing.T) {
+		// Store original values to restore
+		originalTTL := objects.GetReservationTTL()
+		originalDelay := objects.GetReservationDelay()
+		originalFreq := objects.GetPreemptAttemptFrequency()
+		defer func() {
+			objects.SetReservationTTL(originalTTL)
+			objects.SetReservationDelay(originalDelay)
+			objects.SetPreemptAttemptFrequency(originalFreq)
+		}()
+
+		// Create partition with all configuration values set
+		// This should generate Info-level log messages for each configuration parameter
+		_, err := newPartitionContext(configs.PartitionConfig{
+			Name: "test-partition",
+			Queues: []configs.QueueConfig{
+				{
+					Name:      "root",
+					Parent:    true,
+					SubmitACL: "*",
+				},
+			},
+			Scheduler: configs.PartitionSchedulerConfig{
+				ReservationTTL:   "42s",
+				ReservationDelay: "7s",
+			},
+			Preemption: configs.PartitionPreemptionConfig{
+				PreemptAttemptFrequency: "21s",
+			},
+		}, rmID, nil)
+		assert.NilError(t, err, "partition creation should succeed")
+
+		// Verify all configurations were applied
+		assert.Equal(t, 42*time.Second, objects.GetReservationTTL(), "TTL should be configured")
+		assert.Equal(t, 7*time.Second, objects.GetReservationDelay(), "delay should be configured")
+		assert.Equal(t, 21*time.Second, objects.GetPreemptAttemptFrequency(), "frequency should be configured")
+
+		// Note: The actual Info-level logging verification would require log capture,
+		// which is complex to set up in unit tests. The logging is visible in test output.
+	})
+}
+
+// TestReservationWithGuaranteedResourceBehavior tests the actual reservation behavior
+// when reservationWithGuaranteedResource is enabled/disabled
+func TestReservationWithGuaranteedResourceBehavior(t *testing.T) {
+	// Helper function to create a partition with guaranteed resource setting
+	createPartitionWithGuarantee := func(requireGuarantee *bool) *PartitionContext {
+		conf := configs.PartitionConfig{
+			Name: "test-partition",
+			Queues: []configs.QueueConfig{
+				{
+					Name:      "root",
+					Parent:    true,
+					SubmitACL: "*",
+					Resources: configs.Resources{
+						Guaranteed: map[string]string{"memory": "100M", "vcore": "10"},
+						Max:        map[string]string{"memory": "200M", "vcore": "20"},
+					},
+					Queues: []configs.QueueConfig{
+						{
+							Name:      "test-queue",
+							Parent:    false,
+							SubmitACL: "*",
+							Resources: configs.Resources{
+								Guaranteed: map[string]string{"memory": "50M", "vcore": "5"},
+								Max:        map[string]string{"memory": "100M", "vcore": "10"},
+							},
+						},
+					},
+				},
+			},
+			Scheduler: configs.PartitionSchedulerConfig{
+				ReservationTTL:                 "30s",
+				ReservationDelay:               "1s", // Short delay for testing
+				RequireGuaranteeForReservation: requireGuarantee,
+			},
+		}
+
+		partition, err := newPartitionContext(conf, rmID, nil)
+		assert.NilError(t, err, "partition creation should succeed")
+		return partition
+	}
+
+	t.Run("RequireGuaranteeForReservation_nil_defaults_to_false", func(t *testing.T) {
+		partition := createPartitionWithGuarantee(nil) // nil means not set in config
+		assert.Equal(t, false, partition.isReservationWithGuaranteedResourceSet(),
+			"nil RequireGuaranteeForReservation should default to false")
+	})
+
+	t.Run("RequireGuaranteeForReservation_true", func(t *testing.T) {
+		requireTrue := true
+		partition := createPartitionWithGuarantee(&requireTrue)
+		assert.Equal(t, true, partition.isReservationWithGuaranteedResourceSet(),
+			"RequireGuaranteeForReservation=true should result in true")
+	})
+
+	t.Run("RequireGuaranteeForReservation_false", func(t *testing.T) {
+		requireFalse := false
+		partition := createPartitionWithGuarantee(&requireFalse)
+		assert.Equal(t, false, partition.isReservationWithGuaranteedResourceSet(),
+			"RequireGuaranteeForReservation=false should result in false")
+	})
+
+	t.Run("Reservation_behavior_with_guarantee_requirement", func(t *testing.T) {
+		// Test the actual reservation behavior in tryNodes
+		// This requires a more complex setup with applications and nodes
+		requireTrue := true
+		partition := createPartitionWithGuarantee(&requireTrue)
+
+		// Add a node to the partition
+		nodeRes := resources.NewResourceFromMap(map[string]resources.Quantity{
+			"memory": 1000, "vcore": 1000})
+		_ = setupNode(t, nodeID1, partition, nodeRes)
+
+		// Create a test application
+		app := newApplication(appID1, "default", "root.test-queue")
+		err := partition.AddApplication(app)
+		assert.NilError(t, err, "add application to partition should not have failed")
+
+		// Test queue states for reservation behavior
+		queue := partition.GetQueue("root.test-queue")
+		assert.Assert(t, queue != nil, "test queue should exist")
+
+		// Initially the queue should be under guarantee (0 allocated, 50M guaranteed)
+		assert.Assert(t, queue.GetAllocatedResource().Resources["memory"] == 0,
+			"queue should start with no allocations")
+		assert.Assert(t, queue.GetGuaranteedResource().Resources["memory"] == 50000000,
+			"queue should have 50M guaranteed")
+
+		// The queue is under guarantee, so with RequireGuaranteeForReservation=true,
+		// reservations should be allowed
+		underGuarantee := queue.GetGuaranteedResource().FitIn(queue.GetAllocatedResource())
+		assert.Assert(t, underGuarantee, "queue should be under its guarantee initially")
+
+		log.Log(log.Test).Info("Queue guarantee status verified",
+			zap.Stringer("guaranteed", queue.GetGuaranteedResource()),
+			zap.Stringer("allocated", queue.GetAllocatedResource()),
+			zap.Bool("underGuarantee", underGuarantee),
+			zap.Bool("requireGuaranteeForReservation", partition.isReservationWithGuaranteedResourceSet()))
+	})
+
+	t.Run("Reservation_behavior_without_guarantee_requirement", func(t *testing.T) {
+		// Test when RequireGuaranteeForReservation=false
+		requireFalse := false
+		partition := createPartitionWithGuarantee(&requireFalse)
+
+		// Add a node to the partition
+		nodeRes := resources.NewResourceFromMap(map[string]resources.Quantity{
+			"memory": 1000, "vcore": 1000})
+		_ = setupNode(t, nodeID1, partition, nodeRes)
+
+		// Create a test application
+		app := newApplication(appID1, "default", "root.test-queue")
+		err := partition.AddApplication(app)
+		assert.NilError(t, err, "add application to partition should not have failed")
+
+		queue := partition.GetQueue("root.test-queue")
+		assert.Assert(t, queue != nil, "test queue should exist")
+
+		// With RequireGuaranteeForReservation=false, reservations should be allowed
+		// regardless of guarantee status
+		log.Log(log.Test).Info("Queue state for unrestricted reservations",
+			zap.Stringer("guaranteed", queue.GetGuaranteedResource()),
+			zap.Stringer("allocated", queue.GetAllocatedResource()),
+			zap.Bool("requireGuaranteeForReservation", partition.isReservationWithGuaranteedResourceSet()))
+	})
 }

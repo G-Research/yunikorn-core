@@ -51,6 +51,7 @@ var (
 	completingTimeout         = 30 * time.Second
 	terminatedTimeout         = 3 * 24 * time.Hour
 	defaultPlaceholderTimeout = 15 * time.Minute
+	reservationTTL            = 10 * time.Second
 )
 
 var initAppLogOnce sync.Once
@@ -229,9 +230,25 @@ func (sa *Application) GetStateLog() []*StateLogEntry {
 // Set the reservation delay.
 // Set when the cluster context is created to disable reservation.
 func SetReservationDelay(delay time.Duration) {
-	log.Log(log.SchedApplication).Debug("Set reservation delay",
-		zap.Duration("delay", delay))
+	log.Log(log.SchedApplication).Info("Configuration updated: reservation delay",
+		zap.Duration("reservationDelay", delay))
 	reservationDelay = delay
+}
+
+func GetReservationDelay() time.Duration {
+	return reservationDelay
+}
+
+// SetReservationTTL sets the global reservation TTL (Time To Live)
+func SetReservationTTL(ttl time.Duration) {
+	log.Log(log.SchedApplication).Info("Configuration updated: reservation TTL",
+		zap.Duration("reservationTTL", ttl))
+	reservationTTL = ttl
+}
+
+// GetReservationTTL returns the current global reservation TTL
+func GetReservationTTL() time.Duration {
+	return reservationTTL
 }
 
 // Return the current state or a checked specific state for the application.
@@ -1005,7 +1022,7 @@ func (sa *Application) canReplace(request *Allocation) bool {
 }
 
 // tryAllocate will perform a regular allocation of a pending request, includes placeholders.
-func (sa *Application) tryAllocate(headRoom *resources.Resource, allowPreemption bool, preemptionDelay time.Duration, preemptAttemptsRemaining *int, nodeIterator func() NodeIterator, fullNodeIterator func() NodeIterator, getNodeFn func(string) *Node) *AllocationResult {
+func (sa *Application) tryAllocate(headRoom *resources.Resource, allowPreemption bool, preemptionDelay time.Duration, preemptAttemptsRemaining *int, nodeIterator func() NodeIterator, fullNodeIterator func() NodeIterator, getNodeFn func(string) *Node, reservationWithGuaranteedResource bool) *AllocationResult {
 	sa.Lock()
 	defer sa.Unlock()
 	if sa.sortedRequests == nil {
@@ -1015,7 +1032,13 @@ func (sa *Application) tryAllocate(headRoom *resources.Resource, allowPreemption
 	userHeadroom := ugm.GetUserManager().Headroom(sa.queuePath, sa.ApplicationID, sa.user)
 	// get all the requests from the app sorted in order
 	for _, request := range sa.sortedRequests {
+		log.Log(log.SchedApplication).Debug("trying to allocate for request",
+			zap.String("appID", sa.ApplicationID),
+			zap.String("allocationKey", request.GetAllocationKey()))
 		if request.IsAllocated() {
+			log.Log(log.SchedApplication).Debug("request is already allocated, skipping",
+				zap.String("appID", sa.ApplicationID),
+				zap.String("allocationKey", request.GetAllocationKey()))
 			continue
 		}
 		// check if there is a replacement possible
@@ -1036,16 +1059,39 @@ func (sa *Application) tryAllocate(headRoom *resources.Resource, allowPreemption
 		// resource must fit in headroom otherwise skip the request (unless preemption could help)
 		if !headRoom.FitInMaxUndef(request.GetAllocatedResource()) {
 			// attempt preemption
+			log.Log(log.SchedApplication).Debug("not enough headroom for request",
+				zap.String("appID", sa.ApplicationID),
+				zap.String("allocationKey", request.GetAllocationKey()),
+				zap.Stringer("request", request.GetAllocatedResource()),
+				zap.Stringer("headroom", headRoom),
+				zap.Stringer("userHeadroom", userHeadroom))
+			// preemption could help, try it
 			if allowPreemption && *preemptAttemptsRemaining > 0 {
+				log.Log(log.SchedApplication).Debug("attempting preemption for request due to not enough headroom",
+					zap.String("appID", sa.ApplicationID),
+					zap.String("allocationKey", request.GetAllocationKey()))
 				*preemptAttemptsRemaining--
+				log.Log(log.SchedApplication).Debug("preemption attempts remaining for request",
+					zap.Int("attempts", *preemptAttemptsRemaining),
+					zap.String("appID", sa.ApplicationID),
+					zap.String("allocationKey", request.GetAllocationKey()))
 				fullIterator := fullNodeIterator()
 				if fullIterator != nil {
 					if result, ok := sa.tryPreemption(headRoom, preemptionDelay, request, fullIterator, false); ok {
-						// preemption occurred, and possibly reservation
+						// preemption occurred (and maybe a reservation)
+						log.Log(log.SchedApplication).Debug("preemption successful for request",
+							zap.String("appID", sa.ApplicationID),
+							zap.String("allocationKey", request.GetAllocationKey()))
 						return result
 					}
 					request.LogAllocationFailure(common.PreemptionDoesNotHelp, true)
 				}
+			} else {
+				log.Log(log.SchedApplication).Debug("preemption not allowed or no preemption attempts left for request",
+					zap.String("appID", sa.ApplicationID),
+					zap.String("allocationKey", request.GetAllocationKey()),
+					zap.Bool("preemptionAllowed", allowPreemption),
+					zap.Int("preemptionAttemptsLeft", *preemptAttemptsRemaining))
 			}
 			request.LogAllocationFailure(NotEnoughQueueQuota, true) // error message MUST be constant!
 			request.setHeadroomCheckFailed(headRoom, sa.queuePath)
@@ -1067,13 +1113,26 @@ func (sa *Application) tryAllocate(headRoom *resources.Resource, allowPreemption
 
 		iterator := nodeIterator()
 		if iterator != nil {
-			if result := sa.tryNodes(request, iterator); result != nil {
+			if result := sa.tryNodes(request, iterator, reservationWithGuaranteedResource); result != nil {
 				// have a candidate return it
+				log.Log(log.SchedApplication).Debug("found candidate node for request",
+					zap.String("appID", sa.ApplicationID),
+					zap.String("allocationKey", request.GetAllocationKey()),
+					zap.String("nodeID", result.NodeID))
+				// allocation or reservation happened
 				return result
 			}
 
+			log.Log(log.SchedApplication).Debug("no nodes qualified for request, seeing if preemption can help",
+				zap.String("appID", sa.ApplicationID),
+				zap.String("allocationKey", request.GetAllocationKey()))
 			// no nodes qualify, attempt preemption
 			if allowPreemption && *preemptAttemptsRemaining > 0 {
+				log.Log(log.SchedApplication).Debug("preemption is allowed for request",
+					zap.String("appID", sa.ApplicationID),
+					zap.String("allocationKey", request.GetAllocationKey()),
+					zap.Int("preemptionAttemptsLeft", *preemptAttemptsRemaining),
+					zap.Bool("preemptionAllowed", allowPreemption))
 				*preemptAttemptsRemaining--
 				fullIterator := fullNodeIterator()
 				if fullIterator != nil {
@@ -1082,11 +1141,22 @@ func (sa *Application) tryAllocate(headRoom *resources.Resource, allowPreemption
 						return result
 					}
 				}
+				log.Log(log.SchedApplication).Debug("preemption did not help for request",
+					zap.String("appID", sa.ApplicationID),
+					zap.String("allocationKey", request.GetAllocationKey()))
 				request.LogAllocationFailure(common.PreemptionDoesNotHelp, true)
+			} else {
+				log.Log(log.SchedApplication).Debug("preemption not allowed or no preemption attempts left for request",
+					zap.String("appID", sa.ApplicationID),
+					zap.String("allocationKey", request.GetAllocationKey()),
+					zap.Bool("preemptionAllowed", allowPreemption),
+					zap.Int("preemptionAttemptsLeft", *preemptAttemptsRemaining))
 			}
 		}
 	}
 	// no requests fit, skip to next app
+	log.Log(log.SchedApplication).Debug("no requests could be allocated for application",
+		zap.String("appID", sa.ApplicationID))
 	return nil
 }
 
@@ -1313,6 +1383,12 @@ func (sa *Application) tryPlaceholderAllocate(nodeIterator func() NodeIterator, 
 // check ask against both user headRoom and queue headRoom
 func (sa *Application) checkHeadRooms(ask *Allocation, userHeadroom *resources.Resource, headRoom *resources.Resource) bool {
 	// check if this fits in the users' headroom first, if that fits check the queues' headroom
+	log.Log(log.SchedApplication).Debug("checking headroom for allocation",
+		zap.String("appID", sa.ApplicationID),
+		zap.String("allocationKey", ask.GetAllocationKey()),
+		zap.Stringer("askResource", ask.GetAllocatedResource()),
+		zap.Stringer("userHeadroom", userHeadroom),
+		zap.Stringer("queueHeadroom", headRoom))
 	return userHeadroom.FitInMaxUndef(ask.GetAllocatedResource()) && headRoom.FitInMaxUndef(ask.GetAllocatedResource())
 }
 
@@ -1322,34 +1398,71 @@ func (sa *Application) tryReservedAllocate(headRoom *resources.Resource, nodeIte
 	defer sa.Unlock()
 	// calculate the users' headroom, includes group check which requires the applicationID
 	userHeadroom := ugm.GetUserManager().Headroom(sa.queuePath, sa.ApplicationID, sa.user)
+	now := time.Now()
 
 	// process all outstanding reservations and pick the first one that fits
 	for _, reserve := range sa.reservations {
 		ask := sa.requests[reserve.allocKey]
 		// sanity check and cleanup if needed
+		if now.Sub(reserve.createdAt) > GetReservationTTL() {
+			log.Log(log.SchedApplication).Info("reservation expired, cleaning up",
+				zap.String("appID", sa.ApplicationID),
+				zap.String("allocKey", reserve.allocKey),
+				zap.String("nodeID", reserve.nodeID),
+				zap.Duration("age", now.Sub(reserve.createdAt)),
+			)
+			// unreserve that old reservation and return
+			return newUnreservedAllocationResult(reserve.nodeID, reserve.alloc)
+		}
 		if ask == nil || ask.IsAllocated() {
 			var unreserveAsk *Allocation
 			// if the ask was not found we need to construct one to unreserve
 			if ask == nil {
+				log.Log(log.SchedApplication).Debug("allocation for reservation not found, cleaning up reservation",
+					zap.String("appID", sa.ApplicationID),
+					zap.String("allocation key", reserve.allocKey))
+				// create a dummy ask to unreserve
 				unreserveAsk = &Allocation{
 					allocationKey: reserve.allocKey,
 					applicationID: sa.ApplicationID,
 					allocLog:      make(map[string]*AllocationLogEntry),
 				}
 			} else {
+				log.Log(log.SchedApplication).Debug("allocation for reservation already allocated, cleaning up reservation",
+					zap.String("appID", sa.ApplicationID),
+					zap.String("allocation key", reserve.allocKey))
+				// use the existing ask to unreserve
 				unreserveAsk = ask
 			}
 			// remove the reservation as this should not be reserved
 			return newUnreservedAllocationResult(reserve.nodeID, unreserveAsk)
 		}
-
+		log.Log(log.SchedApplication).Debug("trying to reserve allocation",
+			zap.String("appID", ask.applicationID),
+			zap.String("allocation key", ask.allocationKey))
 		if !sa.checkHeadRooms(ask, userHeadroom, headRoom) {
+			log.Log(log.SchedApplication).Debug("skipping reserved allocation, not enough headroom",
+				zap.String("appID", sa.ApplicationID),
+				zap.String("allocation key", ask.GetAllocationKey()),
+				zap.Stringer("askResource", ask.GetAllocatedResource()),
+				zap.Stringer("userHeadroom", userHeadroom),
+				zap.Stringer("queueHeadroom", headRoom))
+			// msg := NotEnoughQueueQuota + " or " + NotEnoughUserQuota
+			// ask.LogAllocationFailure(msg, allocate)
 			continue
 		}
 
 		// Do we need a specific node?
 		if ask.GetRequiredNode() != "" {
+			log.Log(log.SchedApplication).Debug("required node for reserved allocation",
+				zap.String("appID", sa.ApplicationID),
+				zap.String("allocation key", ask.GetAllocationKey()),
+				zap.String("requiredNode", ask.GetRequiredNode()))
 			if !reserve.node.CanAllocate(ask.GetAllocatedResource()) && !ask.HasTriggeredPreemption() {
+				log.Log(log.SchedApplication).Debug("triggering required node preemption for reserved allocation as ask has not previously triggered preemption",
+					zap.String("appID", sa.ApplicationID),
+					zap.String("allocation key", ask.GetAllocationKey()),
+					zap.String("requiredNode", ask.GetRequiredNode()))
 				sa.tryRequiredNodePreemption(reserve, ask)
 				continue
 			}
@@ -1362,36 +1475,69 @@ func (sa *Application) tryReservedAllocate(headRoom *resources.Resource, nodeIte
 		if result != nil {
 			result.ResultType = AllocatedReserved
 			return result
+		} else {
+			log.Log(log.SchedApplication).Debug("reserved allocation on currently reserved node failed",
+				zap.String("appID", sa.ApplicationID),
+				zap.String("allocation key", ask.GetAllocationKey()),
+				zap.String("nodeID", reserve.nodeID))
 		}
 	}
 
+	// Not sure why this is duplicated??
 	// try this on all other nodes
 	for _, reserve := range sa.reservations {
 		// Other nodes cannot be tried if a required node is requested
 		alloc := reserve.alloc
 		if alloc.GetRequiredNode() != "" {
+			log.Log(log.SchedApplication).Debug("required node set therefore cannot try other nodes for reserved allocation",
+				zap.String("appID", sa.ApplicationID),
+				zap.String("allocation key", alloc.GetAllocationKey()),
+				zap.String("requiredNode", alloc.GetRequiredNode()))
 			continue
 		}
 		iterator := nodeIterator()
 		if iterator != nil {
 			if !sa.checkHeadRooms(alloc, userHeadroom, headRoom) {
+				log.Log(log.SchedApplication).Debug("skipping reserved allocation on other nodes, not enough headroom",
+					zap.String("appID", sa.ApplicationID),
+					zap.String("allocation key", alloc.GetAllocationKey()),
+					zap.Stringer("askResource", alloc.GetAllocatedResource()),
+					zap.Stringer("userHeadroom", userHeadroom),
+					zap.Stringer("queueHeadroom", headRoom))
+				// msg := NotEnoughQueueQuota + " or " + NotEnoughUserQuota
+				// alloc.LogAllocationFailure(msg, allocate)
 				continue
 			}
 			result := sa.tryNodesNoReserve(alloc, iterator, reserve.nodeID)
 			// have a candidate return it, including the node that was reserved
 			if result != nil {
+				log.Log(log.SchedApplication).Debug("reserved allocation on other node is completed",
+					zap.String("nodeID", result.NodeID),
+					zap.String("allocationKey", alloc.GetAllocationKey()),
+					zap.Stringer("resultType", result.ResultType))
 				return result
 			}
+		} else {
+			log.Log(log.SchedApplication).Debug("node iterator for reserved allocation is nil")
 		}
 	}
 	return nil
 }
 
 func (sa *Application) tryPreemption(headRoom *resources.Resource, preemptionDelay time.Duration, ask *Allocation, iterator NodeIterator, nodesTried bool) (*AllocationResult, bool) {
+	log.Log(log.SchedApplication).Debug("attempting preemption for ask",
+		zap.String("appID", sa.ApplicationID),
+		zap.String("allocationKey", ask.GetAllocationKey()),
+		zap.Stringer("askResource", ask.GetAllocatedResource()),
+		zap.Stringer("headroom", headRoom),
+		zap.Duration("preemptionDelay", preemptionDelay),
+		zap.Bool("nodesTried", nodesTried))
 	preemptor := NewPreemptor(sa, headRoom, preemptionDelay, ask, iterator, nodesTried)
-
 	// validate prerequisites for preemption of an ask and mark ask for preemption if successful
 	if !preemptor.CheckPreconditions() {
+		log.Log(log.SchedApplication).Debug("preemption preconditions failed",
+			zap.String("appID", sa.ApplicationID),
+			zap.String("allocationKey", ask.GetAllocationKey()))
 		ask.LogAllocationFailure(common.PreemptionPreconditionsFailed, true)
 		return nil, false
 	}
@@ -1465,7 +1611,7 @@ func (sa *Application) tryNodesNoReserve(ask *Allocation, iterator NodeIterator,
 
 // Try all the nodes for a request. The resultType is an allocation or reservation of a node.
 // New allocations can only be reserved after a delay.
-func (sa *Application) tryNodes(ask *Allocation, iterator NodeIterator) *AllocationResult {
+func (sa *Application) tryNodes(ask *Allocation, iterator NodeIterator, reservationWithGuaranteedResource bool) *AllocationResult {
 	var nodeToReserve *Node
 	scoreReserved := math.Inf(1)
 	// check if the alloc is reserved or not
@@ -1483,6 +1629,11 @@ func (sa *Application) tryNodes(ask *Allocation, iterator NodeIterator) *Allocat
 		}
 		// skip over the node if the resource does not fit the node at all.
 		if !node.FitInNode(ask.GetAllocatedResource()) {
+			log.Log(log.SchedApplication).Debug("skipping node for ask as resources do not fit in node",
+				zap.String("allocationKey", allocKey),
+				zap.String("node", node.NodeID),
+				zap.Stringer("askResource", ask.GetAllocatedResource()),
+				zap.Stringer("nodeResource", node.GetAvailableResource()))
 			return true
 		}
 		tryNodeStart := time.Now()
@@ -1523,16 +1674,44 @@ func (sa *Application) tryNodes(ask *Allocation, iterator NodeIterator) *Allocat
 		// nothing allocated should we look at a reservation?
 		askAge := time.Since(ask.GetCreateTime())
 		if reserved == nil && askAge > reservationDelay {
-			log.Log(log.SchedApplication).Debug("app reservation check",
-				zap.String("allocationKey", allocKey),
-				zap.Time("createTime", ask.GetCreateTime()),
-				zap.Duration("askAge", askAge),
-				zap.Duration("reservationDelay", reservationDelay))
-			score := node.GetFitInScoreForAvailableResource(ask.GetAllocatedResource())
-			// Record the best node so-far to reserve
-			if score < scoreReserved {
-				scoreReserved = score
-				nodeToReserve = node
+			// Check if we should enforce guarantee requirements for reservations
+			if reservationWithGuaranteedResource {
+				// Only allow reservations if queue is UNDER its guarantee
+				// (i.e., allocated resources are less than or equal to guaranteed resources)
+				if sa.queue.guaranteedResource.FitIn(sa.queue.allocatedResource) {
+					log.Log(log.SchedApplication).Debug("queue is under guarantee, allowing reservation",
+						zap.String("allocationKey", allocKey),
+						zap.Time("createTime", ask.GetCreateTime()),
+						zap.Duration("askAge", askAge),
+						zap.Duration("reservationDelay", reservationDelay),
+						zap.Stringer("queueGuaranteedResource", sa.queue.guaranteedResource),
+						zap.Stringer("queueAllocatedResource", sa.queue.allocatedResource))
+					score := node.GetFitInScoreForAvailableResource(ask.GetAllocatedResource())
+					// Record the best node so-far to reserve
+					if score < scoreReserved {
+						scoreReserved = score
+						nodeToReserve = node
+					}
+				} else {
+					log.Log(log.SchedApplication).Debug("queue is at or over guarantee, skipping reservation",
+						zap.String("allocationKey", allocKey),
+						zap.Stringer("queueGuaranteedResource", sa.queue.guaranteedResource),
+						zap.Stringer("queueAllocatedResource", sa.queue.allocatedResource))
+					// Skip reservation - don't update nodeToReserve
+				}
+			} else {
+				// No guarantee requirement - always allow reservations
+				log.Log(log.SchedApplication).Debug("no guarantee check required, allowing reservation",
+					zap.String("allocationKey", allocKey),
+					zap.Time("createTime", ask.GetCreateTime()),
+					zap.Duration("askAge", askAge),
+					zap.Duration("reservationDelay", reservationDelay))
+				score := node.GetFitInScoreForAvailableResource(ask.GetAllocatedResource())
+				// Record the best node so-far to reserve
+				if score < scoreReserved {
+					scoreReserved = score
+					nodeToReserve = node
+				}
 			}
 		}
 		return true
@@ -1569,13 +1748,29 @@ func (sa *Application) tryNodes(ask *Allocation, iterator NodeIterator) *Allocat
 func (sa *Application) tryNode(node *Node, ask *Allocation) (*AllocationResult, error) {
 	toAllocate := ask.GetAllocatedResource()
 	allocationKey := ask.GetAllocationKey()
+	log.Log(log.SchedApplication).Debug("trying node for ask",
+		zap.String("appID", sa.ApplicationID),
+		zap.String("nodeID", node.NodeID),
+		zap.String("allocationKey", allocationKey),
+		zap.Stringer("askResource", toAllocate))
 	// create the key for the reservation
 	if !node.preAllocateCheck(toAllocate, allocationKey) {
 		// skip schedule onto node
+		log.Log(log.SchedApplication).Debug("skipping node for ask due to preAllocateCheck failure",
+			zap.String("appID", sa.ApplicationID),
+			zap.String("nodeID", node.NodeID),
+			zap.String("allocationKey", allocationKey),
+			zap.Stringer("askResource", toAllocate))
 		return nil, nil
 	}
 	// skip the node if conditions can not be satisfied
 	if err := node.preAllocateConditions(ask); err != nil {
+		log.Log(log.SchedApplication).Debug("skipping node for ask due to preAllocateConditions failure",
+			zap.String("appID", sa.ApplicationID),
+			zap.String("nodeID", node.NodeID),
+			zap.String("allocationKey", allocationKey),
+			zap.Stringer("askResource", toAllocate),
+			zap.Error(err))
 		return nil, err
 	}
 
