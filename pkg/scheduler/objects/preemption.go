@@ -325,7 +325,6 @@ func (p *Preemptor) checkPreemptionQueueGuarantees() bool {
 		}
 	}
 
-
 	log.Log(log.SchedPreemption).Debug(
 		"preemption guarantee ask will not fit",
 		zap.String("queuePath", p.queuePath),
@@ -1210,28 +1209,6 @@ func (qps *QueuePreemptionSnapshot) GetMaxResource() *resources.Resource {
 	return resources.ComponentWiseMin(qps.Parent.GetMaxResource(), qps.MaxResource)
 }
 
-// GetTotalChildAllocation computes the total allocated resources across all child queues
-func (qps *QueuePreemptionSnapshot) GetTotalChildAllocation() *resources.Resource {
-	if qps == nil || qps.Queue == nil {
-		return resources.NewResource()
-	}
-
-	// Sum up all direct child allocations
-	totalChildAllocation := resources.NewResource()
-
-	// Get a copy of all child queues and iterate through them
-	childQueues := qps.Queue.GetCopyOfChildren()
-	for _, childQueue := range childQueues {
-		if childQueue != nil {
-			// Get the child's allocated resource (excluding preempting resources)
-			childAllocated := resources.SubOnlyExisting(childQueue.GetAllocatedResource(), childQueue.GetPreemptingResource())
-			totalChildAllocation.AddTo(childAllocated)
-		}
-	}
-
-	return totalChildAllocation
-}
-
 // GetFairShareResource computes the fair share of resources for this queue.
 // This method implements a hierarchical fair share calculation algorithm that ensures
 // equitable resource distribution across the queue hierarchy.
@@ -1264,24 +1241,24 @@ func (qps *QueuePreemptionSnapshot) GetFairShareResource() *resources.Resource {
 		// Active siblings include queues that have allocated resources or are actively using resources
 		activeSiblings := currentQueue.getActiveSiblingCount()
 
-		// Get the total allocation across all child queues to determine available capacity
-		// This represents the total resources that can be fairly distributed
-		totalAllocation := currentQueue.GetTotalChildAllocation()
+		// Get the maximum resource limit for this queue to determine the total capacity available
+		// This represents the total resources that can be fairly distributed among active siblings
+		maxResource := currentQueue.Queue.GetMaxResource()
 
-		// If no resources are allocated to children, there's nothing to distribute
-		if totalAllocation.IsEmpty() {
+		// If no maximum resource is configured, there's nothing to distribute
+		if maxResource.IsEmpty() {
 			return nil
 		}
 
-		// If no active siblings, return the full allocation to this queue
+		// If no active siblings, return the full max resource to this queue
 		// This handles the case where this queue is the only active one
 		if activeSiblings <= 0 {
-			return totalAllocation.Clone()
+			return maxResource.Clone()
 		}
 
-		// Calculate base fair share: total_allocation / active_siblings
-		// This gives each active queue an equal share of the available resources
-		fairShare := totalAllocation.Clone()
+		// Calculate base fair share: max_resource / active_siblings
+		// This gives each active queue an equal share of the available maximum resources
+		fairShare := maxResource.Clone()
 		for resourceType, quantity := range fairShare.Resources {
 			if quantity > 0 {
 				// Divide each resource type equally among active siblings
