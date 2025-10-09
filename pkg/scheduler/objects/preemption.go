@@ -308,7 +308,7 @@ func (p *Preemptor) checkPreemptionQueueGuarantees() bool {
 					// Similar to guaranteed resources, we check if the queue has room within its fair share limit
 					if remaining != nil && resources.StrictlyGreaterThanOrEquals(remaining, resources.Zero) {
 						log.Log(log.SchedPreemption).Info(
-							"preemption guarantee satisfied",
+							"preemption fairshare satisfied",
 							zap.String("queuePath", p.queuePath),
 							zap.String("askAppID", p.application.ApplicationID),
 							zap.String("askAllocationKey", p.ask.GetAllocationKey()),
@@ -318,6 +318,12 @@ func (p *Preemptor) checkPreemptionQueueGuarantees() bool {
 				} else {
 					remaining := currentQueue.GetRemainingGuaranteedResource()
 					if remaining != nil && resources.StrictlyGreaterThanOrEquals(remaining, resources.Zero) {
+						log.Log(log.SchedPreemption).Info(
+							"preemption guarantee satisfied",
+							zap.String("queuePath", p.queuePath),
+							zap.String("askAppID", p.application.ApplicationID),
+							zap.String("askAllocationKey", p.ask.GetAllocationKey()),
+						)
 						return true
 					}
 				}
@@ -1291,6 +1297,15 @@ func (qps *QueuePreemptionSnapshot) GetFairShareResource() *resources.Resource {
 			fairShare = resources.ComponentWiseMin(fairShare, currentQueueMax)
 		}
 
+		log.Log(log.SchedPreemption).Debug("Fair share calculated for queue",
+			zap.String("queuePath", currentQueue.QueuePath),
+			zap.Int("activeSiblings", activeSiblings),
+			zap.Stringer("fairShare", fairShare),
+			zap.Stringer("maxResource", maxResource),
+			zap.Stringer("guaranteed", currentQueueGuaranteed),
+			zap.Stringer("allocated", currentQueue.AllocatedResource),
+			zap.Stringer("overUsed", overUsed))
+
 		return fairShare
 	}
 
@@ -1344,6 +1359,15 @@ func (qps *QueuePreemptionSnapshot) GetFairShareResource() *resources.Resource {
 	if currentQueueMax != nil && !currentQueueMax.IsEmpty() {
 		fairShare = resources.ComponentWiseMin(fairShare, currentQueueMax)
 	}
+
+	log.Log(log.SchedPreemption).Debug("Fair share calculated for queue",
+		zap.String("queuePath", currentQueue.QueuePath),
+		zap.Int("activeSiblings", activeSiblings),
+		zap.Stringer("fairShare", fairShare),
+		zap.Stringer("parentFairShare", parentFairShare),
+		zap.Stringer("guaranteed", currentQueueGuaranteed),
+		zap.Stringer("allocated", currentQueue.AllocatedResource),
+		zap.Stringer("overUsed", overUsed))
 
 	return fairShare
 }
