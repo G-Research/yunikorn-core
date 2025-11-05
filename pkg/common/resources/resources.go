@@ -922,6 +922,24 @@ func (r *Resource) StrictlyGreaterThanOnlyExisting(smaller *Resource) bool {
 	}
 }
 
+// FilterOutResourceTypes returns a new Resource with the specified resource types removed.
+func (r *Resource) FilterOutResourceTypes(resourceTypesToFilter ...string) *Resource {
+	if r == nil {
+		return NewResource()
+	}
+
+	filtered := r.Clone()
+	if len(resourceTypesToFilter) == 0 {
+		return filtered
+	}
+
+	for _, resourceType := range resourceTypesToFilter {
+		delete(filtered.Resources, resourceType)
+	}
+
+	return filtered
+}
+
 // Have at least one quantity > 0, and no quantities < 0
 // A nil resource is not strictly greater than zero.
 func StrictlyGreaterThanZero(larger *Resource) bool {

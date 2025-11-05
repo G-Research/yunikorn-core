@@ -1909,3 +1909,91 @@ func allocForScore(originator bool, allowPreemptSelf bool) *Allocation {
 		PreemptionPolicy: &si.PreemptionPolicy{AllowPreemptSelf: allowPreemptSelf},
 	})
 }
+
+// TestTryPreemption_LargeAskRequiresMultipleVictims Test preemption when a large ask requires multiple smaller victims to be preempted.
+// This test verifies that the victim selection logic correctly collects enough victims to satisfy the ask's resource requirements.
+//
+// Setup:
+// - Node1 has capacity: 1000 vcores, 1000 memory, 10 pods
+// - root.level1 parent queue with max resources: 800 vcores, 800 memory, 10 pods
+// - root.level1.child1 has guaranteed: 300 vcores, 300 memory, 3 pods
+//   - Contains 6 allocations (app1): each with 100 vcores, 100 memory, 1 pod
+//   - Total usage: 600 vcores, 600 memory, 6 pods (over-allocated beyond guarantee)
+//
+// - root.level1.child2 has guaranteed: 400 vcores, 400 memory, 5 pods
+//   - Has 1 ask waiting (app2): 300 vcores, 300 memory, 1 pod
+//
+// Expected behavior:
+// - child2's ask (300 vcores, 300 memory, 1 pod) triggers preemption
+// - Exactly 3 allocations from child1 are preempted (frees 300 vcores, 300 memory, 3 pods)
+// - This satisfies the ask's resource requirements while respecting guarantees
+// - The remaining 3 allocations in child1 are preserved to maintain the guaranteed quota
+//
+// Fixes: (YUNIKORN-3137) https://issues.apache.org/jira/browse/YUNIKORN-3137, Fails to preempt more than 2 victims for a larger ask.
+func TestTryPreemption_Ask_Needs_MultipleVictims_IgnorePodsCount(t *testing.T) {
+
+	node := newNode("node1", map[string]resources.Quantity{"vcore": 1000, "memory": 1000, "pods": 10})
+	iterator := getNodeIteratorFn(node)
+	rootQ, err := createRootQueue(map[string]string{"vcore": "1000", "memory": "1000", "pods": "10"})
+	assert.NilError(t, err)
+	parentQ, err := createManagedQueueGuaranteed(rootQ, "level1", true, map[string]string{"vcore": "800", "memory": "800", "pods": "10"}, nil)
+	assert.NilError(t, err)
+	childQ1, err := createManagedQueueGuaranteed(parentQ, "child1", false, nil, map[string]string{"vcore": "300", "memory": "300", "pods": "3"})
+	assert.NilError(t, err)
+	childQ2, err := createManagedQueueGuaranteed(parentQ, "child2", false, nil, map[string]string{"vcore": "400", "memory": "400", "pods": "5"})
+	assert.NilError(t, err)
+
+	app1 := newApplication(appID1, "default", "root.level1.child1")
+	app1.SetQueue(childQ1)
+	childQ1.applications[appID1] = app1
+
+	// Create 6 small allocations (100m CPU, 100Mi memory each)
+	victimAllocs := make([]*Allocation, 6)
+	for i := 0; i < 6; i++ {
+		ask := newAllocationAsk("alloc"+strconv.Itoa(i+1), appID1, resources.NewResourceFromMap(map[string]resources.Quantity{"vcore": 100, "memory": 100, "pods": 1}))
+		ask.createTime = time.Now().Add(-time.Duration(i+1) * time.Minute)
+		assert.NilError(t, app1.AddAllocationAsk(ask))
+
+		alloc := newAllocationWithKey("alloc"+strconv.Itoa(i+1), appID1, "node1", resources.NewResourceFromMap(map[string]resources.Quantity{"vcore": 100, "memory": 100, "pods": 1}))
+		alloc.createTime = ask.createTime
+		app1.AddAllocation(alloc)
+		assert.Check(t, node.TryAddAllocation(alloc), "node alloc failed")
+		assert.NilError(t, childQ1.TryIncAllocatedResource(ask.GetAllocatedResource()))
+		victimAllocs[i] = alloc
+	}
+
+	app2 := newApplication(appID2, "default", "root.level1.child2")
+	app2.SetQueue(childQ2)
+	childQ2.applications[appID2] = app2
+	ask3 := newAllocationAsk("alloc-large", appID2, resources.NewResourceFromMap(map[string]resources.Quantity{"vcore": 300, "memory": 300, "pods": 1}))
+	assert.NilError(t, app2.AddAllocationAsk(ask3))
+	childQ2.incPendingResource(ask3.GetAllocatedResource())
+
+	headRoom := resources.NewResourceFromMap(map[string]resources.Quantity{"vcore": 1000, "memory": 1000, "pods": 10})
+	preemptor := NewPreemptor(app2, headRoom, 30*time.Second, ask3, iterator(), false)
+
+	// Register predicate handler
+	allocs := map[string]string{}
+	allocs["alloc-large"] = "node1"
+
+	plugin := mock.NewPreemptionPredicatePlugin(nil, allocs, nil)
+	plugins.RegisterSchedulerPlugin(plugin)
+	defer plugins.UnregisterSchedulerPlugins()
+
+	result, ok := preemptor.TryPreemption()
+	assert.Assert(t, result != nil, "no result")
+	assert.NilError(t, plugin.GetPredicateError())
+	assert.Assert(t, ok, "no victims found")
+	assert.Equal(t, "alloc-large", result.Request.GetAllocationKey(), "wrong alloc")
+
+	// Verify that exactly 3 victims were preempted
+	preemptedCount := 0
+	for _, alloc := range victimAllocs {
+		if alloc.IsPreempted() {
+			preemptedCount++
+		}
+	}
+	assert.Equal(t, 3, preemptedCount, "wrong number of victims preempted")
+
+	assert.Equal(t, len(ask3.GetAllocationLog()), 0)
+}

@@ -858,11 +858,12 @@ func (p *Preemptor) TryPreemption() (*AllocationResult, bool) {
 			continue
 		}
 		// stop collecting the victims once ask resource requirement met
-		if p.ask.GetAllocatedResource().StrictlyGreaterThanOnlyExisting(victimsTotalResource) {
+		ask := p.ask.GetAllocatedResource().FilterOutResourceTypes("pods")
+		if ask.StrictlyGreaterThanOnlyExisting(victimsTotalResource) {
 			finalVictims = append(finalVictims, victim)
+			// add the victim resources to the total
+			victimsTotalResource.AddTo(victim.GetAllocatedResource())
 		}
-		// add the victim resources to the total
-		victimsTotalResource.AddTo(victim.GetAllocatedResource())
 	}
 
 	if p.ask.GetAllocatedResource().StrictlyGreaterThanOnlyExisting(victimsTotalResource) {
